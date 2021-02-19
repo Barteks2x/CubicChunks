@@ -16,6 +16,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.FeatureAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -24,7 +25,7 @@ import net.minecraft.world.level.levelgen.feature.StructureFeature;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import org.apache.logging.log4j.LogManager;
 
-public interface IBigCube extends BlockGetter, FeatureAccess {
+public interface IBigCube extends BlockGetter, FeatureAccess, ChunkAccess {
 
     int SECTION_DIAMETER = 16;
     int DIAMETER_IN_SECTIONS = EarlyConfig.getDiameterInSections();

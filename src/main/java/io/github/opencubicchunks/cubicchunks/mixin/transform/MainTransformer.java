@@ -108,44 +108,145 @@ public class MainTransformer {
         vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
             getMethod("net.minecraft.class_3193 " // ChunkHolder
                 + "method_17217(long, int, " // updateChunkScheduling
-                + "net.minecraft.class_3193, int)")), "updateCubeScheduling"); // ChunkHolder
-
+                + "net.minecraft.class_3193, int)" // ChunkHolder
+            )), "updateCubeScheduling");
         vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), //ChunkMap
             getMethod("boolean "
                 + "method_27055(" // isExistingChunkFull
                 + "net.minecraft.class_1923)" //ChunkPos
             )), "isExistingCubeFull");
+        vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), //ChunkMap
+            getMethod("void "
+                + "method_20605(" // processUnloads
+                + "java.util.function.BooleanSupplier)" //ChunkPos
+            )), "processCubeUnloads");
+        vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), //ChunkMap
+            getMethod("void "
+                + "method_20458(long, " // scheduleUnload
+                + "net.minecraft.class_3193)" // ChunkHolder
+            )), "scheduleCubeUnload");
+        vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), //ChunkMap
+            getMethod("void method_17242(boolean)")), "saveAllCubes"); // saveAllChunks
+        vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("boolean method_17228(" // save
+                + "net.minecraft.class_2791)" // ChunkAccess
+            )), "cubeSave");
+        vanillaToCubic.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("java.util.concurrent.CompletableFuture method_17236(" // schedule
+                + "net.minecraft.class_3193," // ChunkHolder
+                + "net.minecraft.class_2806)" // ChunkStatus
+            )), "scheduleCube");
 
         Map<ClassMethod, String> methodRedirects = new HashMap<>();
 
         methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
             getMethod("net.minecraft.class_2487 " // CompundTag
                 + "method_17979(" // readChunk
-                + "net.minecraft.class_1923)" // chunkPos
+                + "net.minecraft.class_1923)" // ChunkPos
             )), "readCubeNBT");
-
         methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
             getMethod("void "
                 + "method_27054(" // markPositionReplaceable
-                + "net.minecraft.class_1923)" // chunkPos
+                + "net.minecraft.class_1923)" // ChunkPos
             )), "markCubePositionReplaceable");
-
-        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"),
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
             getMethod("byte "
                 + "method_27053(" // markPosition
                 + "net.minecraft.class_1923, " // chunkPos
                 + "net.minecraft.class_2806$class_2808)" // ChunkStatus.ChunkType
             )), "markCubePosition");
-
         methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_1923"), // ChunkPos
-                getMethod("long method_8324()")), // toLong
-            "asLong");
+            getMethod("long method_8324()" // toLong
+            )), "asLong");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("void method_20605(java.util.function.BooleanSupplier)")), "processCubeUnloads"); // processUnloads
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("void method_23697()"), // flushWorker
+            getObjectType("net/minecraft/class_3977")), "flushCubeWorker"); // ChunkStorage
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("void method_17910(" // write
+                + "net.minecraft.class_1923, " // ChunkPos
+                + "net.minecraft.class_2487)" // CompoundTag
+            ), getObjectType("net/minecraft/class_3977")), "writeCube"); // ChunkStorage
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("java.util.concurrent.CompletableFuture method_20619(" // scheduleChunkLoad
+                + "net.minecraft.class_1923)" // ChunkPos
+            )), "scheduleCubeLoad");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("java.util.concurrent.CompletableFuture method_17226(" // protoChunkToFullChunk
+                + "net.minecraft.class_3193)" // ChunkHolder
+            )), "protoCubeToFullCube");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898"), // ChunkMap
+            getMethod("java.util.concurrent.CompletableFuture method_20617(" // scheduleChunkGeneration
+                + "net.minecraft.class_3193, " // ChunkHolder
+                + "net.minecraft.class_2806)" // ChunkStatus
+            )), "scheduleCubeGeneration");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3193"), // ChunkHolder
+            getMethod("java.util.concurrent.CompletableFuture "
+                + "method_14000()"  // getChunkToSave
+            )), "getCubeToSave");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3193"), // ChunkHolder
+            getMethod("net.minecraft.class_1923 " // ChunkPos
+                + "method_13994()"  // getPos
+            )), "getCubePos");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3193"), // ChunkHolder
+            getMethod("java.util.concurrent.CompletableFuture " // ChunkPos
+                + "method_13993(" // getOrScheduleFuture
+                + "net.minecraft.class_2806, " // ChunkStatus
+                + "net.minecraft.class_3898)" // ChunkMap
+            )), "getOrScheduleCubeFuture");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2818"), // LevelChunk
+            getMethod("void method_12226(boolean)" // setLoaded
+            )), "setLoaded");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2791"), // ChunkAccess
+            getMethod("net.minecraft.class_1923 " // ChunkPos
+                + "method_12004()" // getPos
+            )), "getCubePos");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2791"), // ChunkAccess
+            getMethod("void method_12008(boolean)" // setUnsaved
+            )), "setDirty");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2791"), // ChunkAccess
+            getMethod("net.minecraft.class_2806 " // ChunkStatus
+                + "method_12009()" // getStatus
+            )), "getCubeStatus");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2791"), // ChunkAccess
+            getMethod("java.util.Map method_12016()")), "getAllCubeStructureStarts"); // getAllStarts
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3218"), // ServerLevel
+            getMethod("void method_18764(" // unload
+                + "net.minecraft.class_2818)" // LevelChunk
+            )), "onCubeUnloading");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3227"), // ThreadedLevelLightEngine
+            getMethod("void method_20386(" // updateChunkStatus
+                + "net.minecraft.class_1923)" // ChunkPos
+            )), "setCubeStatusEmpty");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3949"), // ChunkProgressListener
+            getMethod("void method_17670(" // onStatusChange
+                + "net.minecraft.class_1923, " // ChunkPos
+                + "net.minecraft.class_2806)" // ChunkStatus
+            )), "onCubeStatusChange");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_2852"), // ChunkSerializer
+            getMethod("net.minecraft.class_2487 " // CompoundTag
+                + "method_12410(" // write
+                + "net.minecraft.class_3218, " // ServerLevel
+                + "net.minecraft.class_2791)" // ChunkAccess
+            )), "write");
+        methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3898$class_3216"), // ChunkMap.DistanceManager
+            getMethod("void method_17290(" // addTicket
+                + "net.minecraft.class_3230, " // TicketType
+                + "net.minecraft.class_1923, int, " // ChunkPos
+                + "java.lang.Object)"
+            ), getObjectType("net/minecraft/class_3204")), "addCubeTicket"); // DistanceManager
+        methodRedirects.putAll(vanillaToCubic);
 
         Map<ClassField, String> fieldRedirects = new HashMap<>();
         fieldRedirects.put(new ClassField(
                 "net/minecraft/class_3898", // net/minecraft/server/level/ChunkMap
                 "field_17221", "Lit/unimi/dsi/fastutil/longs/LongSet;"), // toDrop
             "cubesToDrop");
+        fieldRedirects.put(new ClassField(
+                "net/minecraft/class_3898", // net/minecraft/server/level/ChunkMap
+                "field_19343", "Ljava/util/Queue;"), // unloadQueue
+            "cubeUnloadQueue");
         fieldRedirects.put(new ClassField(
                 "net/minecraft/class_3898", // net/minecraft/server/level/ChunkMap
                 "field_18807", "Lit/unimi/dsi/fastutil/longs/Long2ObjectLinkedOpenHashMap;"), // pendingUnloads
@@ -159,6 +260,10 @@ public class MainTransformer {
                 "field_17213", "Lit/unimi/dsi/fastutil/longs/Long2ObjectLinkedOpenHashMap;"), // updatingChunkMap
             "updatingCubeMap");
         fieldRedirects.put(new ClassField(
+                "net/minecraft/class_3898", // net/minecraft/server/level/ChunkMap
+                "field_17220", "Lit/unimi/dsi/fastutil/longs/Long2ObjectLinkedOpenHashMap;"), // visibleChunkMap
+            "visibleCubeMap");
+        fieldRedirects.put(new ClassField(
                 getObjectType("net/minecraft/class_3898"), // net/minecraft/server/level/ChunkMap
                 "field_18239", Type.INT_TYPE), // MAX_CHUNK_DISTANCE
             "MAX_CUBE_DISTANCE");
@@ -166,8 +271,17 @@ public class MainTransformer {
                 "net/minecraft/class_3898", // ChunkMap
                 "field_23786", // chunkTypeCache
                 "Lit/unimi/dsi/fastutil/longs/Long2ByteMap;"),
-            "cubeTypeCache"
-        );
+            "cubeTypeCache");
+        fieldRedirects.put(new ClassField(
+                "net/minecraft/class_3898", // ChunkMap
+                "field_18807", // pendingUnloads
+                "Lit/unimi/dsi/fastutil/longs/Long2ObjectLinkedOpenHashMap;"),
+            "pendingCubeUnloads");
+        fieldRedirects.put(new ClassField(
+                "net/minecraft/class_3898", // ChunkMap
+                "field_18307", // entitiesInLevel
+                "Lit/unimi/dsi/fastutil/longs/LongSet;"),
+            "cubeEntitiesInLevel");
 
         Map<Type, Type> typeRedirects = new HashMap<>();
         // TODO: create target constructor in ChunkHolder with CubePos
@@ -176,6 +290,14 @@ public class MainTransformer {
         // TODO: generate that class at runtime? transform and duplicate?
         typeRedirects.put(getObjectType("net/minecraft/class_3900"), // ChunkTaskPriorityQueueSorter
             getObjectType("io/github/opencubicchunks/cubicchunks/chunk/ticket/CubeTaskPriorityQueueSorter"));
+        typeRedirects.put(getObjectType("net/minecraft/class_2818"), // LevelChunk
+            getObjectType("io/github/opencubicchunks/cubicchunks/chunk/cube/BigCube"));
+        typeRedirects.put(getObjectType("net/minecraft/class_2791"), // ChunkAccess
+            getObjectType("io/github/opencubicchunks/cubicchunks/chunk/IBigCube"));
+        typeRedirects.put(getObjectType("net/minecraft/class_2821"), // ImposterProtoChunk
+            getObjectType("io/github/opencubicchunks/cubicchunks/chunk/cube/CubePrimerWrapper"));
+        typeRedirects.put(getObjectType("net/minecraft/class_2852"), // ChunkSerializer
+            getObjectType("io/github/opencubicchunks/cubicchunks/world/storage/CubeSerializer"));
 
         vanillaToCubic.forEach((old, newName) -> {
             MethodNode newMethod = cloneAndApplyRedirects(targetClass, old, newName, methodRedirects, fieldRedirects, typeRedirects);
@@ -260,9 +382,9 @@ public class MainTransformer {
             )), "getRandomPosWithinCube");
 
         methodRedirects.put(new ClassMethod(getObjectType("net/minecraft/class_3215"), // ServerChunkCache
-            getMethod("boolean method_20591(" // isEntityTickingChunk
-                + "net.minecraft.class_1923)" // ChunkPos
-            ), getObjectType("net/minecraft/class_2802")), // ChunkSource
+                getMethod("boolean method_20591(" // isEntityTickingChunk
+                    + "net.minecraft.class_1923)" // ChunkPos
+                ), getObjectType("net/minecraft/class_2802")), // ChunkSource
             "isEntityTickingCube");
 
 
@@ -538,7 +660,8 @@ public class MainTransformer {
                         if (bsmArg instanceof Handle) {
                             Handle handle = (Handle) bsmArg;
                             String owner = handle.getOwner();
-                            if (owner.equals(node.name)) {
+                            MethodNode existingMethod = findExistingMethod(node, handle.getName(), handle.getDesc());
+                            if (owner.equals(node.name) && (existingMethod.access & ACC_SYNTHETIC) != 0) {
                                 String newName = "cc$redirect$" + handle.getName();
                                 lambdaRedirects.put(handle, newName);
                                 cloneAndApplyRedirects(node, new ClassMethod(Type.getObjectType(handle.getOwner()),

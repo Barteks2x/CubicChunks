@@ -15,10 +15,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -42,7 +42,6 @@ import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimerWrapper;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubeStatus;
 import io.github.opencubicchunks.cubicchunks.chunk.graph.CCTicketType;
-import io.github.opencubicchunks.cubicchunks.chunk.storage.ISectionStorage;
 import io.github.opencubicchunks.cubicchunks.chunk.ticket.CubeTaskPriorityQueue;
 import io.github.opencubicchunks.cubicchunks.chunk.ticket.CubeTaskPriorityQueueSorter;
 import io.github.opencubicchunks.cubicchunks.chunk.ticket.ITicketManager;
@@ -57,7 +56,6 @@ import io.github.opencubicchunks.cubicchunks.network.PacketUpdateCubePosition;
 import io.github.opencubicchunks.cubicchunks.network.PacketUpdateLight;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
-import io.github.opencubicchunks.cubicchunks.world.server.IServerWorld;
 import io.github.opencubicchunks.cubicchunks.world.server.IServerWorldLightManager;
 import io.github.opencubicchunks.cubicchunks.world.storage.CubeSerializer;
 import io.github.opencubicchunks.cubicchunks.world.storage.RegionCubeIO;
@@ -65,7 +63,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.CrashReport;
@@ -85,6 +82,7 @@ import net.minecraft.server.level.PlayerMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ThreadedLevelLightEngine;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.server.level.progress.ChunkProgressListener;
 import net.minecraft.util.Mth;
 import net.minecraft.util.thread.BlockableEventLoop;
@@ -92,7 +90,6 @@ import net.minecraft.util.thread.ProcessorHandle;
 import net.minecraft.util.thread.ProcessorMailbox;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.village.poi.PoiManager;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -105,7 +102,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureMana
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.level.storage.LevelStorageSource;
-import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -129,6 +126,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
 
     private final LongSet cubesToDrop = new LongOpenHashSet();
     private final LongSet cubeEntitiesInLevel = new LongOpenHashSet();
+    // used from ASM
     private final Long2ObjectLinkedOpenHashMap<ChunkHolder> pendingCubeUnloads = new Long2ObjectLinkedOpenHashMap<>();
 
     // field_219264_r, worldgenMailbox
@@ -139,13 +137,12 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
     private final AtomicInteger tickingGeneratedCubes = new AtomicInteger();
 
     private final Long2ByteMap cubeTypeCache = new Long2ByteOpenHashMap();
+    // used from ASM
     private final Queue<Runnable> cubeUnloadQueue = Queues.newConcurrentLinkedQueue();
 
     private RegionCubeIO regionCubeIO;
 
     @Shadow @Final private ThreadedLevelLightEngine lightEngine;
-
-    @Shadow private boolean modified;
 
     @Shadow @Final private ChunkMap.DistanceManager distanceManager;
 
@@ -169,8 +166,6 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
     @Shadow @Final private Int2ObjectMap<ChunkMap.TrackedEntity> entityMap;
 
     @Shadow @Final private PlayerMap playerMap;
-
-    @Shadow @Final private PoiManager poiManager;
 
     @Shadow private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> visibleChunkMap;
 
@@ -237,11 +232,9 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
     @Inject(method = "tick(Ljava/util/function/BooleanSupplier;)V",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;processUnloads(Ljava/util/function/BooleanSupplier;)V"))
     protected void onTickScheduleUnloads(BooleanSupplier hasMoreTime, CallbackInfo ci) {
-        if (!((CubicLevelHeightAccessor) this.level).isCubic()) {
-            return;
+        if (((CubicLevelHeightAccessor) this.level).isCubic()) {
+            this.processCubeUnloads(hasMoreTime);
         }
-
-        this.processCubeUnloads(hasMoreTime);
     }
 
     // Forge dimension stuff gone in 1.16, TODO when forge readds dimension code
@@ -253,152 +246,27 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
 
     @Inject(method = "saveAllChunks", at = @At("HEAD"))
     protected void save(boolean flush, CallbackInfo ci) {
-
-        if (!((CubicLevelHeightAccessor) this.level).isCubic()) {
-            return;
-        }
-
-        if (flush) {
-            List<ChunkHolder> list =
-                this.visibleCubeMap.values().stream().filter(ChunkHolder::wasAccessibleSinceLastSave).peek(ChunkHolder::refreshAccessibility).collect(
-                    Collectors.toList());
-            MutableBoolean savedAny = new MutableBoolean();
-
-            do {
-                savedAny.setFalse();
-                list.stream().map((cubeHolder) -> {
-                    CompletableFuture<IBigCube> cubeFuture;
-                    do {
-                        cubeFuture = ((ICubeHolder) cubeHolder).getCubeToSave();
-                        this.mainThreadExecutor.managedBlock(cubeFuture::isDone);
-                    } while (cubeFuture != ((ICubeHolder) cubeHolder).getCubeToSave());
-
-                    return cubeFuture.join();
-                }).filter((cube) -> cube instanceof CubePrimerWrapper || cube instanceof BigCube)
-                    .filter(this::cubeSave).forEach((unsavedCube) -> savedAny.setTrue());
-            } while (savedAny.isTrue());
-
-            this.processCubeUnloads(() -> true);
-            regionCubeIO.flush();
-            LOGGER.info("Cube Storage ({}): All cubes are saved", this.storageFolder.getName());
-        } else {
-            this.visibleCubeMap.values().stream().filter(ChunkHolder::wasAccessibleSinceLastSave).forEach((cubeHolder) -> {
-                IBigCube cube = ((ICubeHolder) cubeHolder).getCubeToSave().getNow(null);
-                if (cube instanceof CubePrimerWrapper || cube instanceof BigCube) {
-                    this.cubeSave(cube);
-                    cubeHolder.refreshAccessibility();
-                }
-            });
-        }
-
-    }
-
-    // chunkSave
-    private boolean cubeSave(IBigCube cube) {
-        ((ISectionStorage) this.poiManager).flush(cube.getCubePos());
-        if (!cube.isDirty()) {
-            return false;
-        } else {
-            cube.setDirty(false);
-            CubePos cubePos = cube.getCubePos();
-
-            try {
-                //TODO: implement isExistingCubeFull and by extension cubeTypeCache
-                ChunkStatus status = cube.getCubeStatus();
-                if (status.getChunkType() != ChunkStatus.ChunkType.LEVELCHUNK) {
-                    if (isExistingCubeFull(cubePos)) {
-                        return false;
-                    }
-//                    if (status == ChunkStatus.EMPTY && p_219229_1_.getAllStarts().values().stream().noneMatch(StructureStart::isValid)) {
-//                        return false;
-//                    }
-                }
-
-                if (status.getChunkType() != ChunkStatus.ChunkType.LEVELCHUNK) {
-                    CompoundTag compoundnbt = regionCubeIO.loadCubeNBT(cubePos);
-                    if (compoundnbt != null && CubeSerializer.getChunkStatus(compoundnbt) == ChunkStatus.ChunkType.LEVELCHUNK) {
-                        return false;
-                    }
-
-                    //TODO: SAVE FORMAT : reimplement structures
-//                    if (status == ChunkStatus.EMPTY && cube.getStructureStarts().values().stream().noneMatch(StructureStart::isValid)) {
-//                        return false;
-//                    }
-                }
-
-                CompoundTag compoundnbt = CubeSerializer.write(this.level, cube);
-                //TODO: FORGE EVENT : reimplement ChunkDataEvent#Save
-//                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Save(p_219229_1_, p_219229_1_.getWorldForge() != null ?
-//                p_219229_1_.getWorldForge() : this.level, compoundnbt));
-                regionCubeIO.saveCubeNBT(cubePos, compoundnbt);
-                this.markCubePosition(cubePos, status.getChunkType());
-                return true;
-
-            } catch (Exception exception) {
-                LOGGER.error("Failed to save chunk {},{},{}", cubePos.getX(), cubePos.getY(), cubePos.getZ(), exception);
-                return false;
-            }
+        if (((CubicLevelHeightAccessor) this.level).isCubic()) {
+            saveAllCubes(flush);
         }
     }
 
+    // used from ASM
+    private void flushCubeWorker() {
+        regionCubeIO.flush();
+    }
+
+    // used from ASM
     private CompoundTag readCubeNBT(CubePos cubePos) throws IOException {
         return regionCubeIO.loadCubeNBT(cubePos);
     }
 
-    // processUnloads
-    private void processCubeUnloads(BooleanSupplier hasMoreTime) {
-        LongIterator longiterator = this.cubesToDrop.iterator();
-
-        for (int i = 0; longiterator.hasNext() && (hasMoreTime.getAsBoolean() || i < 200 || this.cubesToDrop.size() > 2000); longiterator.remove()) {
-            long j = longiterator.nextLong();
-            ChunkHolder chunkholder = this.updatingCubeMap.remove(j);
-            if (chunkholder != null) {
-                this.pendingCubeUnloads.put(j, chunkholder);
-                this.modified = true;
-                ++i;
-                this.scheduleCubeUnload(j, chunkholder);
-            }
-        }
-
-        Runnable runnable;
-        while ((hasMoreTime.getAsBoolean() || this.cubeUnloadQueue.size() > 2000) && (runnable = this.cubeUnloadQueue.poll()) != null) {
-            runnable.run();
-        }
+    // used from ASM
+    private void writeCube(CubePos pos, CompoundTag tag) {
+        regionCubeIO.saveCubeNBT(pos, tag);
     }
 
-
-    private void scheduleCubeUnload(long cubePos, ChunkHolder chunkHolderIn) {
-        CompletableFuture<IBigCube> completablefuture = ((ICubeHolder) chunkHolderIn).getCubeToSave();
-        completablefuture.thenAcceptAsync((icube) -> {
-            CompletableFuture<IBigCube> completablefuture1 = ((ICubeHolder) chunkHolderIn).getCubeToSave();
-            if (completablefuture1 != completablefuture) {
-                this.scheduleCubeUnload(cubePos, chunkHolderIn);
-            } else {
-                if (this.pendingCubeUnloads.remove(cubePos, chunkHolderIn) && icube != null) {
-                    if (icube instanceof BigCube) {
-                        ((BigCube) icube).setLoaded(false);
-                        //TODO: reimplement forge event ChunkEvent#Unload.
-                        //net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkEvent.Unload((Chunk)cube));
-                    }
-
-                    this.cubeSave(icube);
-                    if (this.cubeEntitiesInLevel.remove(cubePos) && icube instanceof BigCube) {
-                        ((IServerWorld) this.level).onCubeUnloading((BigCube) icube);
-                    }
-
-                    ((IServerWorldLightManager) this.lightEngine).setCubeStatusEmpty(icube.getCubePos());
-                    this.lightEngine.tryScheduleUpdate();
-                    ((ICubeStatusListener) this.progressListener).onCubeStatusChange(icube.getCubePos(), null);
-                }
-
-            }
-        }, this.cubeUnloadQueue::add).whenComplete((p_223171_1_, p_223171_2_) -> {
-            if (p_223171_2_ != null) {
-                LOGGER.error("Failed to save cube " + ((ICubeHolder) chunkHolderIn).getCubePos(), p_223171_2_);
-            }
-        });
-    }
-
+    // used from ASM
     private void markCubePositionReplaceable(CubePos cubePos) {
         this.cubeTypeCache.put(cubePos.asLong(), (byte) -1);
     }
@@ -505,47 +373,31 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
         return Iterables.unmodifiableIterable(this.visibleCubeMap.values());
     }
 
-    // func_219244_a, schedule
-    @Override
-    public CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> scheduleCube(ChunkHolder chunkHolderIn, ChunkStatus chunkStatusIn) {
-        CubePos cubePos = ((ICubeHolder) chunkHolderIn).getCubePos();
-        if (chunkStatusIn == ChunkStatus.EMPTY) {
-            return this.scheduleCubeLoad(cubePos);
-        } else {
-            CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> completablefuture = Utils.unsafeCast(
-                ((ICubeHolder) chunkHolderIn).getOrScheduleCubeFuture(chunkStatusIn.getParent(), (ChunkMap) (Object) this)
-            );
-            return Utils.unsafeCast(completablefuture.thenComposeAsync(
-                (Either<IBigCube, ChunkHolder.ChunkLoadingFailure> inputSection) -> {
-                    Optional<IBigCube> optional = inputSection.left();
-                    if (!optional.isPresent()) {
-                        return CompletableFuture.completedFuture(inputSection);
-                    } else {
-                        if (chunkStatusIn == ChunkStatus.LIGHT) {
-                            ((ITicketManager) this.distanceManager).addCubeTicket(CCTicketType.CCLIGHT, cubePos,
-                                33 + CubeStatus.getDistance(ChunkStatus.FEATURES), cubePos);
-                        }
+    // TODO: add these fields directly to TicketType with mixin to make this a field redirect in ASM
+    @Dynamic
+    @Redirect(method = "cc$redirect$lambda$schedule$13", at = @At(value = "FIELD", target = "Lnet/minecraft/server/level/TicketType;LIGHT:Lnet/minecraft/server/level/TicketType;"))
+    private TicketType<?> getCcLightTicketType() {
+        return CCTicketType.CCLIGHT;
+    }
 
-                        IBigCube cube = optional.get();
-                        if (cube.getCubeStatus().isOrAfter(chunkStatusIn)) {
-                            CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> completablefuture1;
-                            if (chunkStatusIn == ChunkStatus.LIGHT) {
-                                completablefuture1 = this.scheduleCubeGeneration(chunkHolderIn, chunkStatusIn);
-                            } else {
-                                completablefuture1 = Utils.unsafeCast(
-                                    chunkStatusIn.load(this.level, this.structureManager, this.lightEngine, (chunk) -> {
-                                        return Utils.unsafeCast(this.protoCubeToFullCube(chunkHolderIn));
-                                    }, (ChunkAccess) cube));
-                            }
+    // TODO: generate necessary methods in ChunkStatus to just make it a method redirect in ASM
+    @Dynamic
+    @Redirect(method = "cc$redirect$lambda$schedule$13",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/ChunkStatus;getDistance(Lnet/minecraft/world/level/chunk/ChunkStatus;)I"))
+    private int getCubeDistance(ChunkStatus status) {
+        return CubeStatus.getDistance(status);
+    }
 
-                            ((ICubeStatusListener) this.progressListener).onCubeStatusChange(cubePos, chunkStatusIn);
-                            return completablefuture1;
-                        } else {
-                            return this.scheduleCubeGeneration(chunkHolderIn, chunkStatusIn);
-                        }
-                    }
-                }, this.mainThreadExecutor));
-        }
+    // TODO: add that method to ChunkStatus? JVM won't resolve that method because types don't match exactly
+    @Dynamic
+    @Redirect(method = "cc$redirect$lambda$schedule$13", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/level/chunk/ChunkStatus;load(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureManager;"
+            + "Lnet/minecraft/server/level/ThreadedLevelLightEngine;Ljava/util/function/Function;Lio/github/opencubicchunks/cubicchunks/chunk/IBigCube;)"
+            + "Ljava/util/concurrent/CompletableFuture;"))
+    private CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> loadChunkStatus(ChunkStatus status, ServerLevel world, StructureManager structureManager,
+                                                                                                    ThreadedLevelLightEngine lightingProvider, Function<ChunkAccess,
+        CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> function, IBigCube chunk) {
+        return status.load(world, structureManager, lightingProvider, function, chunk);
     }
 
     // func_219205_a, getDependencyStatus
