@@ -239,7 +239,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
             this.cubeQueueSorter.createExecutor(delegatedtaskexecutor1, false));
 
         try {
-            regionCubeIO = new RegionCubeIO(storageFolder, "chunk", "cube");
+            regionCubeIO = new RegionCubeIO(storageFolder, p_i51538_3_, "chunk", "cube");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

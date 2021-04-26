@@ -47,7 +47,7 @@ public abstract class MixinEntityStorage implements CubicEntityStorage {
     @Inject(method = "<init>", at = @At("RETURN"))
     private void setupCubeIO(ServerLevel serverLevel, File file, DataFixer dataFixer, boolean bl, Executor executor, CallbackInfo ci) throws IOException {
         if (((CubicLevelHeightAccessor) serverLevel).isCubic()) {
-            cubeWorker = new RegionCubeIO(file, file.getName(), file.getName());
+            cubeWorker = new RegionCubeIO(file, dataFixer, file.getName(), file.getName());
         }
     }
 
