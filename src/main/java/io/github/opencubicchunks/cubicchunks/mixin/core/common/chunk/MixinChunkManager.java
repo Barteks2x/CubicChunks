@@ -331,7 +331,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
             CubePos cubePos = cube.getCubePos();
 
             try {
-                ChunkStatus status = cube.getCubeStatus();
+                ChunkStatus status = cube.getStatus();
                 if (status.getChunkType() != ChunkStatus.ChunkType.LEVELCHUNK) {
                     if (isExistingCubeFull(cubePos)) {
                         return false;
@@ -376,7 +376,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
             CubePos cubePos = cube.getCubePos();
 
             try {
-                ChunkStatus status = cube.getCubeStatus();
+                ChunkStatus status = cube.getStatus();
                 if (status.getChunkType() != ChunkStatus.ChunkType.LEVELCHUNK) {
                     if (isExistingCubeFull(cubePos)) {
                         return CompletableFuture.completedFuture(false);
@@ -641,7 +641,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
                         }
 
                         IBigCube cube = optional.get();
-                        if (cube.getCubeStatus().isOrAfter(chunkStatusIn)) {
+                        if (cube.getStatus().isOrAfter(chunkStatusIn)) {
                             CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> completablefuture1 = Utils
                                 .unsafeCast(chunkStatusIn.load(this.level, this.structureManager, this.lightEngine, (chunk) -> Utils.unsafeCast(this.protoCubeToFullCube(cubeHolder)), cube));
                             ((ICubeStatusListener) this.progressListener).onCubeStatusChange(cubePos, chunkStatusIn);
@@ -816,7 +816,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
                         //TODO: Verify this is ok
                         postLoadProtoChunk(this.level, ((CubePrimer) prevCube).getCubeEntities());
                     });
-                    ((ICubeHolder) holder).replaceProtoCube(new CubePrimerWrapper(cube, level));
+                    ((ICubeHolder) holder).replaceProtoCube(new CubePrimerWrapper(cube));
                 }
 
                 cube.setFullStatus(() -> ChunkHolder.getFullChunkStatus(holder.getTicketLevel()));
@@ -941,7 +941,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
                 }
                 ChunkIoMainThreadTaskUtils.drainQueue();
                 if (iBigCube != null) {
-                    this.markCubePosition(cubePos, iBigCube.getCubeStatus().getChunkType());
+                    this.markCubePosition(cubePos, iBigCube.getStatus().getChunkType());
                     return Either.left(iBigCube);
                 }
                 this.markCubePositionReplaceable(cubePos);

@@ -147,8 +147,8 @@ public class CubeSerializer {
 
             icube = cubePrimer;
             cubePrimer.setInhabitedTime(inhabitedTime);
-            cubePrimer.setCubeStatus(ChunkStatus.byName(level.getString("Status")));
-            if (cubePrimer.getCubeStatus().isOrAfter(ChunkStatus.FEATURES)) {
+            cubePrimer.setStatus(ChunkStatus.byName(level.getString("Status")));
+            if (cubePrimer.getStatus().isOrAfter(ChunkStatus.FEATURES)) {
                 cubePrimer.setCubeLightManager(worldlightmanager);
             }
 
@@ -196,7 +196,7 @@ public class CubeSerializer {
         if (chunkType == ChunkStatus.ChunkType.LEVELCHUNK) {
             //TODO: reimplement forge chunk load event
 //                net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkDataEvent.Load(icube, level, chunkstatus$type));
-            return new CubePrimerWrapper((BigCube) icube, world);
+            return new CubePrimerWrapper((BigCube) icube);
         } else {
             CubePrimer cubePrimer = (CubePrimer) icube;
             ListTag entitiesNBT = level.getList("Entities", 10);
@@ -248,7 +248,7 @@ public class CubeSerializer {
 
         level.putLong("LastUpdate", world.getGameTime());
         level.putLong("InhabitedTime", icube.getCubeInhabitedTime());
-        level.putString("Status", icube.getCubeStatus().getName());
+        level.putString("Status", icube.getStatus().getName());
 
         LevelChunkSection[] sections = icube.getCubeSections();
         ListTag sectionsNBTList = new ListTag();
@@ -315,7 +315,7 @@ public class CubeSerializer {
         }
 
         level.put("TileEntities", tileEntitiesNBTList);
-        if (icube.getCubeStatus().getChunkType() == ChunkStatus.ChunkType.PROTOCHUNK) {
+        if (icube.getStatus().getChunkType() == ChunkStatus.ChunkType.PROTOCHUNK) {
             CubePrimer cubePrimer = (CubePrimer) icube;
             ListTag listTag3 = new ListTag();
             listTag3.addAll(cubePrimer.getCubeEntities());

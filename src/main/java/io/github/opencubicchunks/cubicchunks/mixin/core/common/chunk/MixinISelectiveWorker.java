@@ -51,7 +51,7 @@ public interface MixinISelectiveWorker {
             if (chunk instanceof ProtoChunk) {
                 ((ProtoChunk) chunk).setStatus(status);
             } else if (chunk instanceof CubePrimer) {
-                ((CubePrimer) chunk).setCubeStatus(status);
+                ((CubePrimer) chunk).setStatus(status);
             }
         }
         return CompletableFuture.completedFuture(Either.left(chunk));

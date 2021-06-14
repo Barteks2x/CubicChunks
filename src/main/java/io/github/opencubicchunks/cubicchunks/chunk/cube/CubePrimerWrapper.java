@@ -1,6 +1,7 @@
 package io.github.opencubicchunks.cubicchunks.chunk.cube;
 
 import java.util.BitSet;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -8,7 +9,7 @@ import javax.annotation.Nullable;
 
 import io.github.opencubicchunks.cubicchunks.chunk.ImposterChunkPos;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
-import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.ProtoChunkAccess;
 import io.github.opencubicchunks.cubicchunks.world.storage.CubeProtoTickList;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.Util;
@@ -16,39 +17,34 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkBiomeContainer;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.ProtoTickList;
 import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.StructureFeature;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 
 @SuppressWarnings("deprecation")
 public class CubePrimerWrapper extends CubePrimer {
 
-    private final BigCube cube;
+    private final BigCube wrappedCube;
 
-    public CubePrimerWrapper(BigCube cubeIn, LevelHeightAccessor levelHeightAccessor) {
-        super(cubeIn.getCubePos(), UpgradeData.EMPTY, cubeIn.getCubeSections(), new CubeProtoTickList<>((block) -> {
-                return block == null || block.defaultBlockState().isAir();
-            }, new ImposterChunkPos(cubeIn.getCubePos()), new CubeProtoTickList.CubeProtoTickListHeightAccess(cubeIn.getCubePos(), (CubicLevelHeightAccessor) levelHeightAccessor)),
-            new CubeProtoTickList<>((fluid) -> {
-                return fluid == null || fluid == Fluids.EMPTY;
-            }, new ImposterChunkPos(cubeIn.getCubePos()), new CubeProtoTickList.CubeProtoTickListHeightAccess(cubeIn.getCubePos(), (CubicLevelHeightAccessor) levelHeightAccessor)),
-            levelHeightAccessor);
-
-        this.cube = cubeIn;
+    public CubePrimerWrapper(BigCube cubeIn) {
+        super(cubeIn.getCubePos(), UpgradeData.EMPTY, cubeIn);
+        this.wrappedCube = cubeIn;
     }
 
     public BigCube getCube() {
-        return this.cube;
+        return this.wrappedCube;
     }
 
     @Deprecated @Override public ChunkPos getPos() {
@@ -56,7 +52,7 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override public CubePos getCubePos() {
-        return this.cube.getCubePos();
+        return this.wrappedCube.getCubePos();
     }
 
     @Deprecated @Override public LevelChunkSection[] getSections() {
@@ -64,16 +60,12 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override public LevelChunkSection[] getCubeSections() {
-        return cube.getCubeSections();
+        return wrappedCube.getCubeSections();
     }
 
     //STATUS
     @Deprecated @Override public ChunkStatus getStatus() {
-        return this.cube.getCubeStatus();
-    }
-
-    @Override public ChunkStatus getCubeStatus() {
-        return cube.getCubeStatus();
+        return this.wrappedCube.getStatus();
     }
 
     //BLOCK
@@ -82,11 +74,11 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override public BlockState getBlockState(int x, int y, int z) {
-        return this.cube.getBlockState(x, y, z);
+        return this.wrappedCube.getBlockState(x, y, z);
     }
 
     @Override public FluidState getFluidState(BlockPos pos) {
-        return this.cube.getFluidState(pos);
+        return this.wrappedCube.getFluidState(pos);
     }
 
     //ENTITY
@@ -116,7 +108,7 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override @Nullable public BlockEntity getBlockEntity(BlockPos pos) {
-        return this.cube.getBlockEntity(pos);
+        return this.wrappedCube.getBlockEntity(pos);
     }
 
     @Deprecated @Override @Nullable public CompoundTag getBlockEntityNbtForSaving(BlockPos pos) {
@@ -124,7 +116,7 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override @Nullable public CompoundTag getCubeBlockEntityNbtForSaving(BlockPos pos) {
-        return this.cube.getCubeBlockEntityNbtForSaving(pos);
+        return this.wrappedCube.getCubeBlockEntityNbtForSaving(pos);
     }
 
     @Deprecated @Override @Nullable public CompoundTag getBlockEntityNbt(BlockPos pos) {
@@ -132,36 +124,36 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override @Nullable public CompoundTag getCubeDeferredTileEntity(BlockPos pos) {
-        return this.cube.getCubeDeferredTileEntity(pos);
+        return this.wrappedCube.getCubeDeferredTileEntity(pos);
     }
 
     //LIGHTING
-    @Deprecated @Override public void setLightCorrect(boolean lightCorrectIn) {
-        throw new UnsupportedOperationException("Chunk method called on a cube!");
+    @Override public void setLightCorrect(boolean lightOn) {
+        this.wrappedCube.setLightCorrect(lightOn);
     }
 
     @Override public void setCubeLight(boolean lightCorrectIn) {
-        this.cube.setCubeLight(lightCorrectIn);
+        this.wrappedCube.setCubeLight(lightCorrectIn);
     }
 
-    @Deprecated @Override public boolean isLightCorrect() {
-        throw new UnsupportedOperationException("Chunk method called on a cube!");
+    @Override public boolean isLightCorrect() {
+        return this.wrappedCube.isLightCorrect();
     }
 
     @Override public boolean hasCubeLight() {
-        return this.cube.hasCubeLight();
-    }
-
-    @Deprecated @Override public Stream<BlockPos> getLights() {
-        return this.getCubeLightSources();
-    }
-
-    @Override public Stream<BlockPos> getCubeLightSources() {
-        return this.cube.getCubeLightSources();
+        return this.wrappedCube.hasCubeLight();
     }
 
     @Override public int getMaxLightLevel() {
-        return this.cube.getMaxLightLevel();
+        return this.wrappedCube.getMaxLightLevel();
+    }
+
+    @Override public Stream<BlockPos> getLights() {
+        return this.wrappedCube.getLights();
+    }
+
+    @Override public List<BlockPos> getLightsRaw() {
+        return ((ProtoChunkAccess) this.wrappedCube).getLights();
     }
 
     //MISC
@@ -182,38 +174,42 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override public boolean isEmptyCube() {
-        return this.cube.isEmptyCube();
+        return this.wrappedCube.isEmptyCube();
     }
 
     @Override public ChunkBiomeContainer getBiomes() {
-        return this.cube.getBiomes();
+        return this.wrappedCube.getBiomes();
     }
 
     @Override public void setHeightmap(Heightmap.Types type, long[] data) {
     }
 
-    private Heightmap.Types fixType(Heightmap.Types p_209532_1_) {
-        if (p_209532_1_ == Heightmap.Types.WORLD_SURFACE_WG) {
+    private Heightmap.Types fixType(Heightmap.Types type) {
+        if (type == Heightmap.Types.WORLD_SURFACE_WG) {
             return Heightmap.Types.WORLD_SURFACE;
         } else {
-            return p_209532_1_ == Heightmap.Types.OCEAN_FLOOR_WG ? Heightmap.Types.OCEAN_FLOOR : p_209532_1_;
+            return type == Heightmap.Types.OCEAN_FLOOR_WG ? Heightmap.Types.OCEAN_FLOOR : type;
         }
     }
 
     @Override public int getHeight(Heightmap.Types types, int x, int z) {
-        return this.cube.getHeight(this.fixType(types), x, z);
+        return this.wrappedCube.getHeight(this.fixType(types), x, z);
+    }
+
+    @Override public BlockPos getHeighestPosition(Heightmap.Types type) {
+        return this.wrappedCube.getHeighestPosition(this.fixType(type));
     }
 
     // getStructureStart
     @Override @Nullable public StructureStart<?> getStartForFeature(StructureFeature<?> var1) {
-        return this.cube.getStartForFeature(var1);
+        return this.wrappedCube.getStartForFeature(var1);
     }
 
     @Override public void setStartForFeature(StructureFeature<?> structureIn, StructureStart<?> structureStartIn) {
     }
 
     @Override public Map<StructureFeature<?>, StructureStart<?>> getAllCubeStructureStarts() {
-        return this.cube.getAllCubeStructureStarts();
+        return this.wrappedCube.getAllCubeStructureStarts();
     }
 
     @Override
@@ -225,14 +221,14 @@ public class CubePrimerWrapper extends CubePrimer {
     }
 
     @Override public LongSet getReferencesForFeature(StructureFeature<?> structureIn) {
-        return this.cube.getReferencesForFeature(structureIn);
+        return this.wrappedCube.getReferencesForFeature(structureIn);
     }
 
     @Override public void addReferenceForFeature(StructureFeature<?> structure, long reference) {
     }
 
     @Override public Map<StructureFeature<?>, LongSet> getAllReferences() {
-        return this.cube.getAllReferences();
+        return this.wrappedCube.getAllReferences();
     }
 
     @Override public void setAllReferences(Map<StructureFeature<?>, LongSet> p_201606_1_) {
@@ -241,19 +237,18 @@ public class CubePrimerWrapper extends CubePrimer {
     @Override public void markPosForPostprocessing(BlockPos pos) {
     }
 
-    /*
-    public CubePrimerTickList<Block> getBlocksToBeTicked() {
-        return new CubePrimerTickList<>((p_209219_0_) -> {
-            return p_209219_0_.getDefaultState().isAir();
-        }, this.getPos());
+
+    public ProtoTickList<Block> getBlockTicks() {
+        return new CubeProtoTickList<>((block) -> {
+            return block == null || block.defaultBlockState().isAir();
+        }, new ImposterChunkPos(this.getCubePos()), new CubeProtoTickList.CubeProtoTickListHeightAccess(this.getCubePos(), this));
     }
 
-    public CubePrimerTickList<Fluid> getFluidsToBeTicked() {
-        return new CubePrimerTickList<>((p_209218_0_) -> {
-            return p_209218_0_ == Fluids.EMPTY;
-        }, this.getPos());
+    public ProtoTickList<Fluid> getLiquidTicks() {
+        return new CubeProtoTickList<>((fluid) -> {
+            return fluid == null || fluid == Fluids.EMPTY;
+        }, new ImposterChunkPos(this.getCubePos()), new CubeProtoTickList.CubeProtoTickListHeightAccess(this.getCubePos(), this));
     }
-    */
 
     @Override public BitSet getCarvingMask(GenerationStep.Carving type) {
         throw Util.pauseInIde(new UnsupportedOperationException("Meaningless in this context"));

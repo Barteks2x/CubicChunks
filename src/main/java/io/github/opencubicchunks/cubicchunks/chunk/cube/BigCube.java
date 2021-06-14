@@ -7,10 +7,12 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -239,10 +241,6 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
     }
 
     @Deprecated @Override public ChunkStatus getStatus() {
-        return this.getCubeStatus();
-    }
-
-    @Override public ChunkStatus getCubeStatus() {
         return ChunkStatus.FULL;
     }
 
@@ -620,14 +618,17 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
     }
 
     @Deprecated @Override public Stream<BlockPos> getLights() {
-        return this.getCubeLightSources();
-    }
-
-    @Override public Stream<BlockPos> getCubeLightSources() {
         return StreamSupport
             .stream(BlockPos.betweenClosed(this.cubePos.minCubeX(), this.cubePos.minCubeY(), this.cubePos.minCubeZ(),
                 this.cubePos.maxCubeX(), this.cubePos.maxCubeY(), this.cubePos.maxCubeZ())
                 .spliterator(), false).filter((blockPos) -> this.getBlockState(blockPos).getLightEmission() != 0);
+    }
+
+    @Override public List<BlockPos> getLightsRaw() {
+        return StreamSupport
+            .stream(BlockPos.betweenClosed(this.cubePos.minCubeX(), this.cubePos.minCubeY(), this.cubePos.minCubeZ(),
+                this.cubePos.maxCubeX(), this.cubePos.maxCubeY(), this.cubePos.maxCubeZ())
+                .spliterator(), false).filter((blockPos) -> this.getBlockState(blockPos).getLightEmission() != 0).collect(Collectors.toList());
     }
 
     //MISC

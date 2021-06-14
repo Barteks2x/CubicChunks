@@ -25,6 +25,7 @@
         "common.OverworldBiomeSourceAccess",
         "common.PlayerChunkTrackerFactoryAccess",
         "common.PlayerTicketTrackerFactoryAccess",
+        "common.ProtoChunkAccess",
         "common.ProtoTickListAccess",
         "common.SectionLightStorageAccess",
         "common.SpawnStateAccess",

@@ -1,8 +1,8 @@
 package io.github.opencubicchunks.cubicchunks.chunk;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -16,7 +16,6 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.FeatureAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -38,7 +37,7 @@ public interface IBigCube extends BlockGetter, ChunkAccess, FeatureAccess {
     CubePos getCubePos();
     LevelChunkSection[] getCubeSections();
 
-    ChunkStatus getCubeStatus();
+    List<BlockPos> getLightsRaw();
 
     //BLOCK
     // this can't be setBlockState because the implementations also implement IChunk which already has setBlockState and this breaks obfuscation
@@ -70,8 +69,6 @@ public interface IBigCube extends BlockGetter, ChunkAccess, FeatureAccess {
     //can't be set/hasLight due to obfuscation issues with IChunk
     boolean hasCubeLight();
     void setCubeLight(boolean lightCorrectIn);
-
-    Stream<BlockPos> getCubeLightSources();
 
     //MISC
     // can't be isModified due to obfuscation issues with IChunk

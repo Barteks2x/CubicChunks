@@ -1,6 +1,7 @@
 package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk;
 
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
+import io.github.opencubicchunks.cubicchunks.chunk.NoiseAndSurfaceBuilderHelper;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import net.minecraft.core.SectionPos;
@@ -48,16 +49,21 @@ public abstract class MixinProtoChunk implements LevelHeightAccessor, CubicLevel
             + "Lnet/minecraft/world/level/chunk/ProtoTickList;Lnet/minecraft/world/level/chunk/ProtoTickList;Lnet/minecraft/world/level/LevelHeightAccessor;)V",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelHeightAccessor;getSectionsCount()I"))
     private int getFakeSectionCount(LevelHeightAccessor accessor) {
-        if (!((CubicLevelHeightAccessor) accessor).isCubic()) {
+        CubicLevelHeightAccessor cubicLevelHeightAccessor = (CubicLevelHeightAccessor) accessor;
+        if (!cubicLevelHeightAccessor.isCubic()) {
             return levelHeightAccessor.getSectionsCount();
         }
 
-        if (accessor instanceof CubePrimer.FakeSectionCount) {
-            return accessor.getSectionsCount();
+        if (((ProtoChunk) (Object) this) instanceof CubePrimer && cubicLevelHeightAccessor.isCubic()) {
+            return IBigCube.SECTION_COUNT;
+        }
+
+        if (((ProtoChunk) (Object) this) instanceof NoiseAndSurfaceBuilderHelper && cubicLevelHeightAccessor.isCubic()) {
+            return NoiseAndSurfaceBuilderHelper.SECTION_COUNT;
         }
 
         if (accessor instanceof Level) {
-            if (((CubicLevelHeightAccessor) accessor).generates2DChunks()) {
+            if (cubicLevelHeightAccessor.generates2DChunks()) {
                 int height = ((Level) accessor).dimensionType().height();
                 int minY = ((Level) accessor).dimensionType().minY();
 
