@@ -12,6 +12,7 @@ import io.github.opencubicchunks.cubicchunks.chunk.carver.CubicCarvingContext;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CCWorldGenUtils;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.BiomeManagerAccess;
 import io.github.opencubicchunks.cubicchunks.mixin.access.common.OverworldBiomeSourceAccess;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.world.CubeWorldGenRandom;
@@ -22,6 +23,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
@@ -247,7 +249,10 @@ public abstract class MixinChunkGenerator implements ICubeGenerator {
 
                 long seed = worldgenRandom.setDecorationSeed(region.getSeed(), columnMinPos.getX(), columnMinPos.getY(), columnMinPos.getZ());
 
-                Biome biome = ((ChunkGenerator) (Object) this).getBiomeSource().getPrimaryBiome(new ChunkPos(cubeToSection(mainCubeX, columnX), cubeToSection(mainCubeZ, columnZ)));
+                Biome biome = ((ChunkGenerator) (Object) this).getBiomeSource().getNoiseBiome(
+                    QuartPos.fromSection(cubeToSection(mainCubeX, columnX)) + BiomeManagerAccess.getChunkCenterQuart(),
+                    QuartPos.fromSection(cubeToSection(mainCubeY, 0)) + BiomeManagerAccess.getChunkCenterQuart() * IBigCube.DIAMETER_IN_SECTIONS,
+                    QuartPos.fromSection(cubeToSection(mainCubeZ, columnZ)) + BiomeManagerAccess.getChunkCenterQuart());
                 try {
                     ((BiomeGetter) (Object) biome).generate(structureManager, ((ChunkGenerator) (Object) this), region, seed, worldgenRandom, columnMinPos);
                 } catch (Exception e) {

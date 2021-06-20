@@ -48,6 +48,7 @@ public abstract class MixinMinecraftServer {
         serverChunkCache.addRegionTicket(TicketType.START, pos, 1, Unit.INSTANCE);
         count++;
     }
+
     private void addCube(IServerChunkProvider serverChunkProvider, CubePos pos) {
         serverChunkProvider.addCubeRegionTicket(TicketType.START, pos, 1, Unit.INSTANCE);
         count++;

@@ -1,8 +1,8 @@
-package io.github.opencubicchunks.cubicchunks.chunk;
+package io.github.opencubicchunks.cubicchunks.chunk.aquifer;
 
 import java.util.Arrays;
 
-import io.github.opencubicchunks.cubicchunks.CubicChunks;
+import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
@@ -10,7 +10,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Aquifer;
 import net.minecraft.world.level.levelgen.BaseStoneSource;
-import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 
 /**
@@ -30,9 +29,7 @@ public final class CubicAquifer implements Aquifer {
     private static final int Z_SPACING = 16;
 
     private final NormalNoise barrierNoise;
-    private final NormalNoise waterLevelNoise;
-    private final NormalNoise lavaNoise;
-    private final NoiseGeneratorSettings noiseGeneratorSettings;
+    private final AquiferSourceSampler sourceSampler;
 
     private final int[] aquiferCache;
     private final long[] aquiferLocationCache;
@@ -43,6 +40,7 @@ public final class CubicAquifer implements Aquifer {
     private final int minGridZ;
     private final int minY;
     private final int sizeY;
+    private final BlockState[] typeToBlock;
     private final int gridSizeX;
     private final int gridSizeZ;
 
@@ -52,19 +50,23 @@ public final class CubicAquifer implements Aquifer {
 
     public CubicAquifer(
         ChunkPos chunkPos,
-        NormalNoise barrierNoise, NormalNoise waterLevelNoise, NormalNoise lavaNoise,
-        NoiseGeneratorSettings noiseGeneratorSettings, int minYInput
+        NormalNoise barrierNoise,
+        AquiferSourceSampler sourceSampler,
+        int minYInput, BlockState waterState
     ) {
         this.barrierNoise = barrierNoise;
-        this.waterLevelNoise = waterLevelNoise;
-        this.lavaNoise = lavaNoise;
-        this.noiseGeneratorSettings = noiseGeneratorSettings;
+        this.sourceSampler = sourceSampler;
 
         this.minGridX = gridX(chunkPos.getMinBlockX()) - 1;
         this.minGridY = gridY(minYInput) - 1;
         this.minGridZ = gridZ(chunkPos.getMinBlockZ()) - 1;
         this.minY = minYInput;
         this.sizeY = IBigCube.DIAMETER_IN_BLOCKS;
+
+        typeToBlock = new BlockState[] {
+            waterState,
+            Blocks.LAVA.defaultBlockState()
+        };
 
         int maxGridX = gridX(chunkPos.getMaxBlockX()) + 1;
         int maxGridY = gridY(minYInput + sizeY) + 1;
@@ -76,7 +78,7 @@ public final class CubicAquifer implements Aquifer {
 
         int gridSize = this.gridSizeX * gridSizeY * this.gridSizeZ;
         this.aquiferCache = new int[gridSize];
-        Arrays.fill(this.aquiferCache, Sample.NONE);
+        Arrays.fill(this.aquiferCache, AquiferSample.NONE);
         this.aquiferLocationCache = new long[gridSize];
         Arrays.fill(this.aquiferLocationCache, Long.MAX_VALUE);
     }
@@ -103,7 +105,7 @@ public final class CubicAquifer implements Aquifer {
             return this.stone(stoneSource, x, y, z);
         }
 
-        if (isLavaLevel(y)) {
+        if (this.sourceSampler.isLavaLevel(y)) {
             this.shouldScheduleFluidUpdate = false;
             return LAVA;
         }
@@ -153,14 +155,20 @@ public final class CubicAquifer implements Aquifer {
         double firstToSecond = similarity(firstDistance2, secondDistance2);
 
         double barrierDensity = this.computeBarrierDensity(x, y, z, firstDistance2, secondDistance2, thirdDistance2, secondSource, thirdSource, firstAquifer, firstToSecond);
-
         return getBlockState(stoneSource, x, y, z, density, firstAquifer, firstToSecond, barrierDensity);
+    }
+
+    private BlockState stateOf(int status) {
+        return this.typeToBlock[AquiferSample.typeOf(status)];
     }
 
     private BlockState getBlockState(BaseStoneSource stoneSource, int x, int y, int z, double density, int firstAquifer, double firstToSecond, double barrierDensity) {
         if (density + barrierDensity <= 0.0) {
             this.shouldScheduleFluidUpdate = firstToSecond > 0.0;
-            return y >= Sample.levelOf(firstAquifer) ? AIR : Sample.stateOf(firstAquifer);
+            if (y >= AquiferSample.levelOf(firstAquifer)) {
+                return AIR;
+            }
+            return this.stateOf(firstAquifer);
         } else {
             return this.stone(stoneSource, x, y, z);
         }
@@ -179,7 +187,7 @@ public final class CubicAquifer implements Aquifer {
         double firstToSecond
     ) {
         // create barrier between water and lava level
-        if (isLavaLevel(y - 1) && Sample.levelOf(firstAquifer) >= y && Sample.isWater(firstAquifer)) {
+        if (this.sourceSampler.isLavaLevel(y - 1) && AquiferSample.levelOf(firstAquifer) >= y && AquiferSample.isWater(firstAquifer)) {
             return 1.0;
         }
 
@@ -246,14 +254,10 @@ public final class CubicAquifer implements Aquifer {
         return sourcePos;
     }
 
-    private static boolean isLavaLevel(int y) {
-        return y <= CubicChunks.MIN_SUPPORTED_HEIGHT + 12;
-    }
-
     private double getPressureLazyNoise(int x, int y, int z, int first, int second) {
-        int firstLevel = Sample.levelOf(first);
-        int secondLevel = Sample.levelOf(second);
-        if (y <= firstLevel && y <= secondLevel && Sample.typeOf(first) != Sample.typeOf(second)) {
+        int firstLevel = AquiferSample.levelOf(first);
+        int secondLevel = AquiferSample.levelOf(second);
+        if (y <= firstLevel && y <= secondLevel && AquiferSample.typeOf(first) != AquiferSample.typeOf(second)) {
             return 1.0;
         }
 
@@ -287,36 +291,11 @@ public final class CubicAquifer implements Aquifer {
         int z = BlockPos.getZ(pos);
         int index = this.getIndex(gridX(x), gridY(y), gridZ(z));
         int aquifer = this.aquiferCache[index];
-        if (aquifer == Sample.NONE) {
-            aquifer = this.computeAquifer(x, y, z);
+        if (aquifer == AquiferSample.NONE) {
+            aquifer = this.sourceSampler.sample(x, y, z);
             this.aquiferCache[index] = aquifer;
         }
         return aquifer;
-    }
-
-    private int computeAquifer(int x, int y, int z) {
-        if (y > 30) {
-            int seaLevel = this.noiseGeneratorSettings.seaLevel();
-            return Sample.water(seaLevel);
-        }
-
-        int gridY = Math.floorDiv(y, 40);
-
-        double noiseX = x >> 6;
-        double noiseY = gridY / 1.4;
-        double noiseZ = z >> 6;
-
-        double levelNoise = this.waterLevelNoise.getValue(noiseX, noiseY, noiseZ) * 30.0 - 10.0;
-        if (Math.abs(levelNoise) > 8.0) {
-            levelNoise *= 4.0;
-        }
-
-        int gridMidY = gridY * 40 + 20;
-        int level = gridMidY + Mth.floor(levelNoise);
-        level = Math.min(56, level);
-
-        boolean lava = Math.abs(this.lavaNoise.getValue(noiseX, noiseY, noiseZ)) > 0.22;
-        return lava ? Sample.lava(level) : Sample.water(level);
     }
 
     private static int gridX(int x) {
@@ -337,49 +316,5 @@ public final class CubicAquifer implements Aquifer {
 
     public int getSizeY() {
         return sizeY;
-    }
-
-    static final class Sample {
-        // we leave an extra bit so we can represent null values
-        private static final int NONE = Integer.MIN_VALUE;
-
-        private static final int TYPE_BITS = 1;
-        private static final int TYPE_MASK = (1 << TYPE_BITS) - 1;
-
-        private static final int WATER = 0;
-        private static final int LAVA = 1;
-
-        private static final BlockState[] TYPE_TO_BLOCK = new BlockState[] {
-            Blocks.WATER.defaultBlockState(),
-            Blocks.LAVA.defaultBlockState()
-        };
-
-        static int pack(int type, int level) {
-            return type | level << TYPE_BITS;
-        }
-
-        static int water(int level) {
-            return pack(WATER, level);
-        }
-
-        static int lava(int level) {
-            return pack(LAVA, level);
-        }
-
-        static int levelOf(int status) {
-            return status >> TYPE_BITS;
-        }
-
-        static int typeOf(int status) {
-            return status & TYPE_MASK;
-        }
-
-        static BlockState stateOf(int status) {
-            return TYPE_TO_BLOCK[typeOf(status)];
-        }
-
-        static boolean isWater(int status) {
-            return typeOf(status) == WATER;
-        }
     }
 }

@@ -10,6 +10,7 @@ import io.github.opencubicchunks.cubicchunks.world.CubeWorldGenRegion;
 import io.github.opencubicchunks.cubicchunks.world.CubicNaturalSpawner;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -22,7 +23,9 @@ import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.PotentialCalculator;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.pathfinder.PathComputationType;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Mixin;
@@ -36,6 +39,8 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(value = NaturalSpawner.class, priority = 0)// Assume absolute priority because of Y checks found here, we should always WANT to run first
 public abstract class MixinNaturalSpawner {
+
+    private static final boolean USE_HAS_CEILING_SPAWN_LOGIC = false;
 
     @Inject(method = "spawnForChunk", at = @At("HEAD"), cancellable = true)
     private static void cancelSpawnForChunk(ServerLevel serverLevel, LevelChunk levelChunk, NaturalSpawner.SpawnState spawnState, boolean bl,
@@ -71,17 +76,82 @@ public abstract class MixinNaturalSpawner {
             return;
         }
 
+
         if (reader instanceof CubeWorldGenRegion) {
             CubeWorldGenRegion world = (CubeWorldGenRegion) reader;
-            BlockPos newPos = new BlockPos(x, world.getHeight(SpawnPlacements.getHeightmapType(entityType), x, z), z);
+            BlockPos.MutableBlockPos newPos = new BlockPos.MutableBlockPos(x, world.getHeight(SpawnPlacements.getHeightmapType(entityType), x, z), z);
             int lowestAllowedY = Coords.cubeToMinBlock(world.getMainCubeY());
             int highestAllowedY = Coords.cubeToMaxBlock(world.getMainCubeY());
+
+            BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos().set(newPos);
+
+            if (world.dimensionType().hasCeiling() && USE_HAS_CEILING_SPAWN_LOGIC) {
+                cir.setReturnValue(ceilingLogic(entityType, world, newPos, lowestAllowedY, highestAllowedY, mutableBlockPos));
+                return;
+            }
 
             if (newPos.getY() < lowestAllowedY + 1 || newPos.getY() > highestAllowedY - 1) {
                 cir.setReturnValue(newPos);
             }
         }
     }
+
+    // TODO: Is there a better way of doing this using the mixins commented out below?! We need the height checks before the air checks to ensure we don't throw out of bounds :/
+    private static BlockPos ceilingLogic(EntityType<?> entityType, CubeWorldGenRegion world, BlockPos.MutableBlockPos newPos, int lowestAllowedY,
+                                         int highestAllowedY, BlockPos.MutableBlockPos mutableBlockPos) {
+        do {
+            mutableBlockPos.move(Direction.DOWN);
+        } while (mutableBlockPos.getY() > Coords.cubeToMinBlock(world.getMainCubeY()) + 1 && !world.getBlockState(mutableBlockPos).isAir());
+
+        do {
+            mutableBlockPos.move(Direction.DOWN);
+        } while (mutableBlockPos.getY() > Coords.cubeToMinBlock(world.getMainCubeY()) + 1 && world.getBlockState(mutableBlockPos).isAir());
+
+        if (SpawnPlacements.getPlacementType(entityType) == SpawnPlacements.Type.ON_GROUND) {
+            BlockPos blockPos = mutableBlockPos.below();
+            if (blockPos.getY() < lowestAllowedY + 1 || blockPos.getY() > highestAllowedY - 1) {
+                return newPos;
+            }
+
+            if (world.getBlockState(mutableBlockPos).isPathfindable(world, mutableBlockPos, PathComputationType.LAND)) {
+                return mutableBlockPos;
+            }
+        }
+        return mutableBlockPos.immutable();
+    }
+
+    @Redirect(method = "getTopNonCollidingPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/dimension/DimensionType;hasCeiling()Z"))
+    private static boolean useOverWorldLogic(DimensionType dimensionType, LevelReader world, EntityType<?> entityType, int x, int z) {
+        if (!((CubicLevelHeightAccessor) world).isCubic()) {
+            return dimensionType.hasCeiling();
+        }
+        return false;
+    }
+
+//    @Redirect(method = "getTopNonCollidingPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelReader;getMinBuildHeight()I"))
+//    private static int useCubeMinY(LevelReader levelReader) {
+//        if (!((CubicLevelHeightAccessor) levelReader).isCubic()) {
+//            return levelReader.getMinBuildHeight();
+//        }
+//        return Coords.cubeToMinBlock(((CubeWorldGenRegion) levelReader).getMainCubeY());
+//    }
+//
+//    @Redirect(method = "getTopNonCollidingPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelReader;getBlockState(Lnet/minecraft/core/BlockPos;)"
+//        + "Lnet/minecraft/world/level/block/state/BlockState;", ordinal = 0))
+//    private static BlockState nullWhenOutOfBounds(LevelReader levelReader, BlockPos pos) {
+//        if (!((CubicLevelHeightAccessor) levelReader).isCubic()) {
+//            return levelReader.getBlockState(pos);
+//        }
+//        return null;
+//    }
+//
+//    @Redirect(method = "getTopNonCollidingPos", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/state/BlockState;isAir()Z", ordinal = 0))
+//    private static boolean stopDoingWhenBlockIsNull(BlockState state, LevelReader world, EntityType<?> entityType, int x, int z) {
+//        if (!((CubicLevelHeightAccessor) world).isCubic()) {
+//            return !state.isAir();
+//        }
+//        return state != null && !state.isAir();
+//    }
 
     //Called from ASM
     private static BlockPos getRandomPosWithinCube(Level level, ChunkAccess chunkAccess) {

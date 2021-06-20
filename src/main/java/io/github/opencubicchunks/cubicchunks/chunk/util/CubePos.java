@@ -2,6 +2,8 @@ package io.github.opencubicchunks.cubicchunks.chunk.util;
 
 import static io.github.opencubicchunks.cubicchunks.utils.Coords.*;
 
+import java.util.stream.Stream;
+
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -170,5 +172,9 @@ public class CubePos extends Vec3i {
 
     public static long sectionToCubeSectionLong(long sectionPosIn) {
         return CubePos.from(SectionPos.of(sectionPosIn)).asSectionPos().asLong();
+    }
+
+    public static Stream<SectionPos> sectionsAroundCube(CubePos center, int radiusSections) {
+        return SectionPos.cube(center.asSectionPos(), radiusSections);
     }
 }

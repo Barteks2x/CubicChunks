@@ -12,6 +12,9 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.BlockStateConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneDecoratorConfiguration;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.placement.FeatureDecorator;
 
 public class CCFeatures {
 
@@ -60,6 +63,9 @@ public class CCFeatures {
                     .build()
             ))
         ));
+
+    public static final ConfiguredFeature<?, ?> LAVA_LEAK_FIX = createCCConfiguredFeature("lava_leak_fix",
+        CCFeature.LAVA_LEAK_FIX.configured(NoneFeatureConfiguration.INSTANCE).decorated(FeatureDecorator.NOPE.configured(NoneDecoratorConfiguration.INSTANCE)));
 
     public static void init() {
     }

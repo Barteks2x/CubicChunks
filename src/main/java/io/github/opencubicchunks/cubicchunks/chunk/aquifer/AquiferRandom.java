@@ -1,4 +1,6 @@
-package io.github.opencubicchunks.cubicchunks.chunk;
+package io.github.opencubicchunks.cubicchunks.chunk.aquifer;
+
+import io.github.opencubicchunks.cubicchunks.chunk.NonAtomicWorldgenRandom;
 
 public final class AquiferRandom extends NonAtomicWorldgenRandom {
     @Override
