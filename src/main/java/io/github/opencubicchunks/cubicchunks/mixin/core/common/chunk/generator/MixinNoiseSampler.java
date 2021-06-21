@@ -1,5 +1,6 @@
-package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk;
+package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk.generator;
 
+import io.github.opencubicchunks.cubicchunks.chunk.NoiseSettingsCC;
 import net.minecraft.world.level.levelgen.NoiseSampler;
 import net.minecraft.world.level.levelgen.NoiseSettings;
 import org.spongepowered.asm.mixin.Final;
@@ -16,10 +17,8 @@ public class MixinNoiseSampler {
 
     @Inject(method = "applySlide", at = @At("HEAD"), cancellable = true)
     private void onlySlideIslandNoise(double noise, int y, CallbackInfoReturnable<Double> cir) {
-        if (noiseSettings.islandNoiseOverride()) { //If we're in the end, let it slide
-            return;
+        if (!((NoiseSettingsCC) noiseSettings).slides()) {
+            cir.setReturnValue(noise);
         }
-
-        cir.setReturnValue(noise);
     }
 }

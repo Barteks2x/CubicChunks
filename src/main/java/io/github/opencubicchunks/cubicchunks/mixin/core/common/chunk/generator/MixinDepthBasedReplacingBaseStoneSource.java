@@ -1,4 +1,4 @@
-package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk;
+package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk.generator;
 
 import io.github.opencubicchunks.cubicchunks.chunk.NonAtomicWorldgenRandom;
 import net.minecraft.util.Mth;

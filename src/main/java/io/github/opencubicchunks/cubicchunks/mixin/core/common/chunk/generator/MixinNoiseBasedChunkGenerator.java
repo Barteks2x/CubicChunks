@@ -1,4 +1,4 @@
-package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk;
+package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk.generator;
 
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -37,9 +37,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class MixinNoiseBasedChunkGenerator {
     @Mutable @Shadow @Final protected Supplier<NoiseGeneratorSettings> settings;
 
+    @Mutable @Shadow @Final int cellCountY;
+
     @Shadow @Final private int cellHeight;
 
-    @Mutable @Shadow @Final private int cellCountY;
 
     @Inject(method = "<init>(Lnet/minecraft/world/level/biome/BiomeSource;Lnet/minecraft/world/level/biome/BiomeSource;JLjava/util/function/Supplier;)V", at = @At("RETURN"))
     private void init(BiomeSource biomeSource, BiomeSource biomeSource2, long l, Supplier<NoiseGeneratorSettings> supplier, CallbackInfo ci) {
