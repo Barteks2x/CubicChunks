@@ -5,10 +5,12 @@ import javax.annotation.Nullable;
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
+import io.github.opencubicchunks.cubicchunks.world.CubeCollisionGetter;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.chunk.ChunkStatus;
 
-public interface ICubicWorld extends CubicLevelHeightAccessor { //TODO: maybe rename this class? I think this name is reserved by the API
+public interface ICubicWorld extends CubicLevelHeightAccessor, CubeCollisionGetter { //TODO: maybe rename this class? I think this name is reserved by the API
     IBigCube getCube(int cubeX, int cubeY, int cubeZ);
 
     default IBigCube getCube(CubePos cubePos) {
@@ -32,4 +34,10 @@ public interface ICubicWorld extends CubicLevelHeightAccessor { //TODO: maybe re
 
     @Nullable
     IBigCube getCube(int cubeX, int cubeY, int cubeZ, ChunkStatus status, boolean notnull);
+
+    @Nullable
+    @Override
+    default BlockGetter getCubeForCollisions(int cubeX, int cubeY, int cubeZ) {
+        return this.getCube(cubeX, cubeY, cubeZ, ChunkStatus.EMPTY, false);
+    }
 }

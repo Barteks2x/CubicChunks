@@ -53,7 +53,7 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         }
 
         this.cubeArray = new ClientChunkProviderCubeArray(adjustCubeViewDistance(viewDistance), adjustCubeViewDistance(CubicChunks.config().client.verticalViewDistance), this.level);
-        this.emptyCube = new EmptyCube(level);
+        this.emptyCube = new EmptyCube(level, CubePos.of(0, 0, 0));
     }
 
     private int adjustCubeViewDistance(int viewDistance) {
