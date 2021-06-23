@@ -85,11 +85,13 @@
         "common.world.placement.verticalanchor.MixinVerticalAnchorAboveBottom",
         "common.world.placement.verticalanchor.MixinVerticalAnchorBelowTop",
         "common.world.server.MixinServerWorldLightManager",
+        "common.world.structure.MixinConfiguredStructureFeature",
+        "common.world.structure.MixinLocateCommand",
         "common.world.structure.MixinStructureFeature",
+        "common.world.structure.MixinStructureFeatureConfiguration",
         "common.world.structure.MixinStructureFeatureManager",
         "common.world.structure.MixinStructurePiece",
-        "common.world.structure.MixinStructureStart",
-        "common.world.structure.pieces.MixinOceanRuinPieces"
+        "common.world.structure.MixinStructureStart"
     ],
     "client": [
         "client.chunk.MixinChunk",

@@ -1,7 +1,5 @@
 package io.github.opencubicchunks.cubicchunks.world.biome;
 
-import java.util.stream.Stream;
-
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Registry;
@@ -20,7 +18,7 @@ public class StripedBiomeSource extends BiomeSource {
     private final Biome[] biomeArray;
 
     public StripedBiomeSource(Registry<Biome> registry) {
-        super(Stream.of());
+        super(registry.stream().map(x -> () -> x));
         this.biomeRegistry = registry;
         this.biomeArray =
             registry.stream().filter(biome -> biome.getBiomeCategory() != Biome.BiomeCategory.NETHER && biome.getBiomeCategory() != Biome.BiomeCategory.THEEND).toArray(Biome[]::new);

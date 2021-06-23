@@ -16,8 +16,10 @@ import io.github.opencubicchunks.cubicchunks.mixin.access.common.OverworldBiomeS
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.world.CubeWorldGenRandom;
 import io.github.opencubicchunks.cubicchunks.world.CubeWorldGenRegion;
+import io.github.opencubicchunks.cubicchunks.world.ICubicStructureStart;
 import io.github.opencubicchunks.cubicchunks.world.biome.BiomeGetter;
 import io.github.opencubicchunks.cubicchunks.world.biome.StripedBiomeSource;
+import io.github.opencubicchunks.cubicchunks.world.gen.structure.ICubicConfiguredStructureFeature;
 import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
@@ -81,51 +83,30 @@ public abstract class MixinChunkGenerator implements ICubeGenerator {
         }
     }
 
+    @Override
+    public void createStructures(RegistryAccess registryAccess, StructureFeatureManager structureFeatureManager, ChunkAccess chunkAccess, SectionPos section,
+                                 StructureManager structureManager, long worldSeed) {
+        Biome biome = this.biomeSource.getPrimaryBiome(chunkAccess.getPos());
+        this.createCcStructure(StructureFeatures.STRONGHOLD, registryAccess, structureFeatureManager, chunkAccess, section, structureManager, worldSeed, biome);
 
-    // TODO: check which one is which
-    @Inject(method = "createStructures", at = @At("HEAD"), cancellable = true)
-    public void onGenerateStructures(RegistryAccess registry, StructureFeatureManager featureManager, ChunkAccess chunkAccess, StructureManager manager, long seed, CallbackInfo ci) {
-        if (((CubicLevelHeightAccessor) chunkAccess).generates2DChunks()) {
-            return;
-        }
-        if (!(chunkAccess instanceof IBigCube)) {
-            return;
-        }
-        ci.cancel();
-
-
-        //TODO: Patch entity game crashes in order to spawn villages(village pieces spawn villagers)
-        //TODO: Setup a 2D and 3D placement.
-
-        IBigCube cube = (IBigCube) chunkAccess;
-
-        CubePos cubePos = cube.getCubePos();
-
-        Biome biome = this.biomeSource.getPrimaryBiome(cube.getCubePos().asChunkPos());
-        this.createCCStructure(StructureFeatures.STRONGHOLD, registry, featureManager, cube, manager, seed, cubePos, biome);
-
-        for (Supplier<ConfiguredStructureFeature<?, ?>> configuredStructureFeatureSupplier : biome.getGenerationSettings().structures()) {
-            this.createCCStructure(configuredStructureFeatureSupplier.get(), registry, featureManager, cube, manager, seed, cubePos, biome);
+        for (Supplier<ConfiguredStructureFeature<?, ?>> supplier : biome.getGenerationSettings().structures()) {
+            this.createCcStructure(supplier.get(), registryAccess, structureFeatureManager, chunkAccess, section, structureManager, worldSeed, biome);
         }
     }
 
+    public void createCcStructure(ConfiguredStructureFeature<?, ?> structure, RegistryAccess registryAccess, StructureFeatureManager structureFeatureManager,
+                                  ChunkAccess chunk, SectionPos pos, StructureManager structureManager, long worldSeed, Biome biome) {
+        StructureStart<?> previousStart = structureFeatureManager.getStartForFeature(pos, structure.feature, chunk);
+        // TODO: is this right?
+        int referenceCount = previousStart != null ? previousStart.getReferences() : 0;
+        StructureFeatureConfiguration config = this.settings.getConfig(structure.feature);
 
-    private void createCCStructure(ConfiguredStructureFeature<?, ?> configuredStructureFeature, RegistryAccess registryAccess, StructureFeatureManager structureFeatureManager, IBigCube cube,
-                                   StructureManager structureManager, long seed, CubePos cubePos, Biome biome) {
-        StructureStart<?> structureStart = structureFeatureManager
-            .getStartForFeature(/*SectionPos.of(cube.getPos(), 0) We return null as a sectionPos Arg is not used in the method*/null, configuredStructureFeature.feature, cube);
-        int i = structureStart != null ? structureStart.getReferences() : 0;
-        StructureFeatureConfiguration structureFeatureConfiguration = this.settings.getConfig(configuredStructureFeature.feature);
-        if (structureFeatureConfiguration != null) {
-            StructureStart<?> structureStart2 = configuredStructureFeature
-                .generate(registryAccess, ((ChunkGenerator) (Object) this), this.biomeSource, structureManager, seed, cubePos.asChunkPos(), biome, i, structureFeatureConfiguration, cube);
-            structureFeatureManager
-                .setStartForFeature(/* SectionPos.of(cube.getPos(), 0) We return null as a sectionPos Arg is not used in the method*/null, configuredStructureFeature.feature,
-                    structureStart2, cube);
+        if (config != null) {
+            StructureStart<?> newStart = ((ICubicConfiguredStructureFeature) structure).generate(registryAccess, ((ChunkGenerator) (Object) this), this.biomeSource, structureManager,
+                worldSeed, pos, biome, referenceCount, config, chunk);
+            structureFeatureManager.setStartForFeature(pos, structure.feature, newStart, chunk);
         }
-
     }
-
 
     @Inject(method = "createReferences", at = @At("HEAD"), cancellable = true)
     public void createReferences(WorldGenLevel worldGenLevel, StructureFeatureManager featureManager, ChunkAccess chunkAccess, CallbackInfo ci) {
@@ -157,6 +138,11 @@ public abstract class MixinChunkGenerator implements ICubeGenerator {
                     long cubePosAsLong = CubePos.asLong(x, y, z);
 
                     for (StructureStart<?> structureStart : world.getCube(CubePos.of(x, y, z)).getAllCubeStructureStarts().values()) {
+
+                        if (!((ICubicStructureStart) structureStart).has3DPlacement() && y != cubeY) {
+                            continue;
+                        }
+
                         try {
                             if (structureStart != StructureStart.INVALID_START && structureStart.getBoundingBox().intersects(
                                 //We use a new Bounding Box and check if it intersects a given cube.

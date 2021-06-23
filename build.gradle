@@ -191,7 +191,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     // Add each module as a dependency
-    ["fabric-api-base", "fabric-command-api-v1", "fabric-networking-v0", "fabric-lifecycle-events-v1"].forEach {
+    ["fabric-api-base", "fabric-command-api-v1", "fabric-networking-v0", "fabric-lifecycle-events-v1", "fabric-resource-loader-v0", "fabric-resource-loader-v0"].forEach {
         modImplementation(fabricApi.module(it, project.fabric_version))
     }
 
@@ -211,7 +211,6 @@ dependencies {
 
     include implementation('io.github.opencubicchunks:regionlib:0.63.0-SNAPSHOT')
     include implementation('org.spongepowered:noise:2.0.0-SNAPSHOT')
-
 }
 
 processResources {

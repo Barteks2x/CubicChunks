@@ -101,6 +101,8 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
     private int cubeCenterColumnCenterX = 0;
     private int cubeCenterColumnCenterZ = 0;
 
+    private boolean usesRegionHeightMap;
+
     private final TickList<Block> blockTicks = new WorldGenTickList<>((pos) -> this.getCube(pos).getBlockTicks());
     private final TickList<Fluid> liquidTicks = new WorldGenTickList<>((pos) -> this.getCube(pos).getLiquidTicks());
 
@@ -146,6 +148,14 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
     public void moveCenterCubeChunkPos(int newX, int newZ) {
         this.cubeCenterColumnCenterX = newX;
         this.cubeCenterColumnCenterZ = newZ;
+    }
+
+    public void usesRegionHeightMap() {
+        this.usesRegionHeightMap = true;
+    }
+
+    public void usesCubeHeightMap() {
+        this.usesRegionHeightMap = false;
     }
 
     @Override public ChunkPos getCenter() {
@@ -359,6 +369,17 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
         int yStart = Coords.cubeToMinBlock(mainCubeY + 1);
         int yEnd = Coords.cubeToMinBlock(mainCubeY);
 
+        if (usesRegionHeightMap) {
+            for (int cubeY = maxCubeY; cubeY > minCubeY; cubeY--) {
+                int currentCubeMinY = Coords.cubeToMinBlock(cubeY);
+                IBigCube cube1 = getCube(new BlockPos(x, currentCubeMinY, z));
+
+                int cubeLocalHeight = cube1.getCubeLocalHeight(heightmapType, x, z);
+                if (cubeLocalHeight >= currentCubeMinY) {
+                    return cubeLocalHeight + 1;
+                }
+            }
+        }
 
         if (maxCubeY == mainCubeY) {
             IBigCube cube1 = getCube(new BlockPos(x, yEnd, z));

@@ -96,7 +96,7 @@ public class MixinChunkStatus {
             + "Ljava/util/concurrent/CompletableFuture;",
         at = @At("HEAD"), cancellable = true
     )
-    private static void generateStructureStatus(
+    private static void generateStructureStarts(
         ChunkStatus status, Executor executor, ServerLevel world, ChunkGenerator generator,
         StructureManager templateManager, ThreadedLevelLightEngine lightManager,
         Function<ChunkAccess, CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> func,
@@ -125,10 +125,17 @@ public class MixinChunkStatus {
         //cc
         if (!((IBigCube) chunk).getCubeStatus().isOrAfter(status)) {
             if (world.getServer().getWorldData().worldGenSettings().generateFeatures()) { // check if structures are enabled
-                // structureFeatureManager ==  getStructureManager?
-                generator.createStructures(world.registryAccess(), world.structureFeatureManager(), chunk, templateManager, world.getSeed());
+                for (int dx = 0; dx < IBigCube.DIAMETER_IN_SECTIONS; dx++) {
+                    for (int dy = 0; dy < IBigCube.DIAMETER_IN_SECTIONS; dy++) {
+                        for (int dz = 0; dz < IBigCube.DIAMETER_IN_SECTIONS; dz++) {
+                            // structureFeatureManager ==  getStructureManager?
+                            ((ICubeGenerator) generator).createStructures(world.registryAccess(), world.structureFeatureManager(), chunk,
+                                ((IBigCube) chunk).getCubePos().asSectionPos(dx, dy, dz),
+                                templateManager, world.getSeed());
+                        }
+                    }
+                }
             }
-
             if (chunk instanceof CubePrimer) {
                 ((CubePrimer) chunk).setCubeStatus(status);
             }

@@ -124,6 +124,10 @@ public class CubePos extends Vec3i {
         return SectionPos.of(cubeToSection(this.getX(), 0), cubeToSection(this.getY(), 0), cubeToSection(this.getZ(), 0));
     }
 
+    public SectionPos asSectionPos(int dx, int dy, int dz) {
+        return SectionPos.of(cubeToSection(this.getX(), dx), cubeToSection(this.getY(), dy), cubeToSection(this.getZ(), dz));
+    }
+
     public BlockPos asBlockPos() {
         return new BlockPos(minCubeX(), minCubeY(), minCubeZ());
     }

@@ -17,6 +17,7 @@ import io.github.opencubicchunks.cubicchunks.chunk.IChunkManager;
 import io.github.opencubicchunks.cubicchunks.meta.EarlyConfig;
 import io.github.opencubicchunks.cubicchunks.network.PacketDispatcher;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import io.github.opencubicchunks.cubicchunks.server.VerticalSettingsReloadListener;
 import io.github.opencubicchunks.cubicchunks.world.biome.StripedBiomeSource;
 import io.github.opencubicchunks.cubicchunks.world.gen.feature.CCFeatures;
 import io.github.opencubicchunks.cubicchunks.world.gen.placement.CCPlacement;
@@ -71,7 +72,6 @@ public class CubicChunks implements ModInitializer {
         if (System.getProperty("cubicchunks.debug", "false").equalsIgnoreCase("true")) {
             try {
                 Class.forName("io.github.opencubicchunks.cubicchunks.debug.DebugVisualization").getMethod("enable").invoke(null);
-                SharedConstants.IS_RUNNING_IN_IDE = true;
             } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException e) {
                 LOGGER.catching(e);
             }
@@ -136,6 +136,8 @@ public class CubicChunks implements ModInitializer {
 
         Registry.register(Registry.BIOME_SOURCE, new ResourceLocation(MODID, "stripes"), StripedBiomeSource.CODEC);
 //        Registry.register(Registry.CHUNK_GENERATOR, new ResourceLocation(MODID, "generator"), CCNoiseBasedChunkGenerator.CODEC);
+
+        VerticalSettingsReloadListener.registerVerticalSettingsReloadListener();
     }
 
     //TODO: Implement a file for this.
