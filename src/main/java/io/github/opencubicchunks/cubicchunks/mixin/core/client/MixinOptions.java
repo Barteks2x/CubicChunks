@@ -25,7 +25,7 @@ public class MixinOptions {
                 return;
             }
         }
-        cir.setReturnValue(CubicChunks.config().client.verticalViewDistance >= 4 ? this.renderClouds : CloudStatus.OFF);
+        cir.setReturnValue(CubicChunks.commonConfig().getVerticalViewDistance() >= 4 ? this.renderClouds : CloudStatus.OFF);
 
     }
 }

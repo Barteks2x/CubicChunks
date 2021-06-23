@@ -22,7 +22,7 @@ public class MixinIntegratedServer {
     private void tickServer(BooleanSupplier shouldKeepTicking, CallbackInfo ci) {
         int horizontalViewDistance = Math.max(2, this.minecraft.options.renderDistance + -1);
 
-        int verticalViewDistance = Math.max(2, CubicChunks.config().client.verticalViewDistance + -1);
+        int verticalViewDistance = Math.max(2, CubicChunks.commonConfig().getVerticalViewDistance() + -1);
         int currentVerticalViewDistance1 = ((IVerticalView) ((IntegratedServer) (Object) this).getPlayerList()).getVerticalViewDistance();
 
         if (verticalViewDistance != currentVerticalViewDistance1) {

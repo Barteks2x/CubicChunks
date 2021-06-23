@@ -7,6 +7,7 @@ import io.github.opencubicchunks.cubicchunks.network.PacketCCLevelInfo;
 import io.github.opencubicchunks.cubicchunks.network.PacketCubeCacheRadius;
 import io.github.opencubicchunks.cubicchunks.network.PacketDispatcher;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import net.minecraft.network.Connection;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerList.class)
 public abstract class MixinPlayerList implements IVerticalView {
@@ -50,8 +52,14 @@ public abstract class MixinPlayerList implements IVerticalView {
         }
     }
 
-    @Inject(method = "sendLevelInfo", at = @At("HEAD"))
-    private void sendCubeInfo(ServerPlayer player, ServerLevel world, CallbackInfo ci) {
-        PacketDispatcher.sendTo(new PacketCCLevelInfo(((CubicLevelHeightAccessor) world).worldStyle()), player);
+    @Inject(method = "placeNewPlayer", at = @At(value = "NEW", target = "net/minecraft/network/protocol/game/ClientboundLoginPacket"))
+    private void sendCubeInfoLogin(Connection connection, ServerPlayer player, CallbackInfo ci) {
+        PacketDispatcher.sendTo(new PacketCCLevelInfo(((CubicLevelHeightAccessor) player.getLevel()).worldStyle()), player);
+    }
+
+    @SuppressWarnings("UnresolvedMixinReference")
+    @Inject(method = "*", at = @At(value = "NEW", target = "net/minecraft/network/protocol/game/ClientboundRespawnPacket"))
+    private void sendCubeInfoRespawn(ServerPlayer player, boolean alive, CallbackInfoReturnable<ServerPlayer> cir) {
+        PacketDispatcher.sendTo(new PacketCCLevelInfo(((CubicLevelHeightAccessor) player.getLevel()).worldStyle()), player);
     }
 }

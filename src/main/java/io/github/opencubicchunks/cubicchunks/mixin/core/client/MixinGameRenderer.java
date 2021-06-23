@@ -25,7 +25,7 @@ public class MixinGameRenderer {
             return;
         }
         float horizontalRenderDistance = this.renderDistance * 4.0F;
-        float verticalRenderDistance = (CubicChunks.config().client.verticalViewDistance * 16) * 4.0F;
+        float verticalRenderDistance = (CubicChunks.commonConfig().getVerticalViewDistance() * 16) * 4.0F;
         cir.setReturnValue(Math.max(horizontalRenderDistance, verticalRenderDistance));
     }
 }

@@ -16,6 +16,12 @@ import io.github.opencubicchunks.cubicchunks.chunk.biome.ColumnBiomeContainer;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CCWorldGenUtils;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.config.ChunkGeneratorSettings;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.ChunkGeneratorSettingsReloadListener;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.ChunkGeneratorAccess;
+import io.github.opencubicchunks.cubicchunks.config.ChunkGeneratorSettings;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.ChunkGeneratorSettingsReloadListener;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.ChunkGeneratorAccess;
 import io.github.opencubicchunks.cubicchunks.mixin.access.common.StructureFeatureManagerAccess;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
@@ -213,7 +219,6 @@ public class MixinChunkStatus {
 
             CubePos cubePos = ((IBigCube) chunk).getCubePos();
             int cubeY = cubePos.getY();
-
             CubePrimer cubeAbove = new CubePrimer(CubePos.of(cubePos.getX(), cubeY + 1,
                 cubePos.getZ()), UpgradeData.EMPTY, cubeWorldGenRegion);
 
@@ -257,20 +262,31 @@ public class MixinChunkStatus {
                                                                               int cubeY, ChunkPos pos, NoiseAndSurfaceBuilderHelper cubeAccessWrapper) {
         return generator.fillFromNoise(executor, world.structureFeatureManager().forWorldGenRegion(cubeWorldGenRegion), cubeAccessWrapper).thenApply(chunkAccess -> {
             cubeAccessWrapper.applySections();
+            ChunkGeneratorSettings chunkGeneratorSettings = ChunkGeneratorSettingsReloadListener.CHUNK_GENERATOR_SETTINGS
+                .getOrDefault(((ChunkGeneratorAccess) generator).invokeCodec(), ChunkGeneratorSettings.DEFAULT);
 
             // Exit early and don't waste time on empty sections.
             if (areSectionsEmpty(cubeY, pos, ((NoiseAndSurfaceBuilderHelper) chunkAccess).getDelegateByIndex(0))) {
                 return chunkAccess;
             }
 
-            generator.buildSurfaceAndBedrock(cubeWorldGenRegion, chunkAccess);
+            if (chunkGeneratorSettings.controlsStatus(ChunkStatus.SURFACE)) {
+                generator.buildSurfaceAndBedrock(cubeWorldGenRegion, chunkAccess);
+            } else {
+                ((ICubeGenerator) generator).buildSurfaceAndBedrockCC(cubeWorldGenRegion, chunkAccess);
+            }
 
+            if (chunkGeneratorSettings.controlsStatus(ChunkStatus.CARVERS)) {
+                ((ICubeGenerator) generator).applyCubicCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.AIR);
+            } else {
+                generator.applyCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.AIR);
+            }
 
-            cubeAccessWrapper.setNeedsExtraHeight(false);
-
-            // Carvers
-            generator.applyCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.AIR);
-            generator.applyCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.LIQUID);
+            if (chunkGeneratorSettings.controlsStatus(ChunkStatus.LIQUID_CARVERS)) {
+                ((ICubeGenerator) generator).applyCubicCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.LIQUID);
+            } else {
+                generator.applyCarvers(world.getSeed(), world.getBiomeManager(), cubeAccessWrapper, GenerationStep.Carving.LIQUID);
+            }
             return chunkAccess;
         });
     }

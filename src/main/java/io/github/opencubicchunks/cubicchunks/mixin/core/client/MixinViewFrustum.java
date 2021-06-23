@@ -38,7 +38,7 @@ public abstract class MixinViewFrustum {
         }
         ci.cancel();
         int hDistance = renderDistanceChunks * 2 + 1;
-        int vDistance = CubicChunks.config().client.verticalViewDistance * 2 + 1;
+        int vDistance = CubicChunks.commonConfig().getVerticalViewDistance() * 2 + 1;
 
         this.chunkGridSizeX = hDistance;
         this.chunkGridSizeY = vDistance;

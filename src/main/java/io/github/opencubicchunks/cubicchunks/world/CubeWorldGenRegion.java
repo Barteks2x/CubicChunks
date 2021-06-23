@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.config.HeightSettings;
 import io.github.opencubicchunks.cubicchunks.mixin.access.common.WorldGenRegionAccess;
 import io.github.opencubicchunks.cubicchunks.server.ICubicWorld;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
@@ -101,6 +102,12 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
     private int cubeCenterColumnCenterX = 0;
     private int cubeCenterColumnCenterZ = 0;
 
+    private int height;
+    private int minHeight;
+
+    private int boundHeight;
+    private int boundMinHeight;
+
     private final TickList<Block> blockTicks = new WorldGenTickList<>((pos) -> this.getCube(pos).getBlockTicks());
     private final TickList<Fluid> liquidTicks = new WorldGenTickList<>((pos) -> this.getCube(pos).getLiquidTicks());
 
@@ -140,12 +147,21 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
             this.maxCubeZ = maxCube.getCubePos().getZ();
 
             this.access = access;
+            minHeight = getLevel().getMinBuildHeight();
+            height = getLevel().getHeight();
+
+            boundMinHeight = getLevel().getMinBuildHeight();
+            boundHeight = getLevel().getHeight();
         }
     }
 
     public void moveCenterCubeChunkPos(int newX, int newZ) {
         this.cubeCenterColumnCenterX = newX;
         this.cubeCenterColumnCenterZ = newZ;
+    }
+
+    public IBigCube getCenterCube() {
+        return (IBigCube) access;
     }
 
     @Override public ChunkPos getCenter() {
@@ -196,6 +212,10 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
     }
 
     public IBigCube getCube(int x, int y, int z, ChunkStatus requiredStatus, boolean nonnull) {
+        if (x == this.mainCubeX && y == this.mainCubeY && z == this.mainCubeZ) {
+            return (IBigCube) this.access;
+        }
+
         IBigCube icube;
         if (this.cubeExists(x, y, z)) {
             int dx = x - this.minCubeX;
@@ -408,6 +428,10 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
         return cube != null && cube.getBiomes() != null ? cube.getBiomes().getNoiseBiome(x, y, z) : this.getUncachedNoiseBiome(x, y, z);
     }
 
+    @Override public Biome getBiome(BlockPos pos) {
+        return super.getBiome(pos);
+    }
+
     @Override public boolean isClientSide() {
         return false;
     }
@@ -529,12 +553,24 @@ public class CubeWorldGenRegion extends WorldGenRegion implements ICubicWorld {
         return this.getLevel().startsForFeature(sectionPos, structure);
     }
 
+    public void upgradeY(HeightSettings heightSettings) {
+        boundHeight = heightSettings.getHeightBounds().getHeight(this);
+        boundMinHeight = heightSettings.getHeightBounds().getMinHeight(this);
+
+        height = heightSettings.getMaxHeight().getHeight(this);
+        minHeight = heightSettings.getMinHeight().getMinHeight(this);
+    }
+
     @Override public int getMinBuildHeight() {
-        return getLevel().getMinBuildHeight();
+        return minHeight;
     }
 
     @Override public int getHeight() {
-        return getLevel().getHeight();
+        return height;
+    }
+
+    @Override public boolean isOutsideBuildHeight(int y) {
+        return y < boundMinHeight || y >= boundMinHeight + boundHeight;
     }
 
     public boolean insideCubeHeight(int blockY) {

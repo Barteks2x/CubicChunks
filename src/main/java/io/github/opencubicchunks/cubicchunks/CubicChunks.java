@@ -3,17 +3,20 @@ package io.github.opencubicchunks.cubicchunks;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import io.github.opencubicchunks.cubicchunks.chunk.IChunkManager;
+import io.github.opencubicchunks.cubicchunks.config.CommonConfig;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.ChunkGeneratorSettingsReloadListener;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.HeightSettingsReloadListener;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.WorldStyleReloadListener;
 import io.github.opencubicchunks.cubicchunks.meta.EarlyConfig;
 import io.github.opencubicchunks.cubicchunks.network.PacketDispatcher;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
@@ -22,8 +25,8 @@ import io.github.opencubicchunks.cubicchunks.world.gen.feature.CCFeatures;
 import io.github.opencubicchunks.cubicchunks.world.gen.placement.CCPlacement;
 import io.github.opencubicchunks.cubicchunks.world.gen.placement.CubicHeightProvider;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
-import net.minecraft.Util;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ChunkMap;
@@ -49,18 +52,17 @@ public class CubicChunks implements ModInitializer {
     public static final int MIN_SUPPORTED_HEIGHT = -MAX_SUPPORTED_HEIGHT;
     public static final int SEA_LEVEL = 64;
 
+    public static CubicLevelHeightAccessor.WorldStyle currentClientStyle = CubicLevelHeightAccessor.WorldStyle.CHUNK;
+
     public static final String MODID = "cubicchunks";
     public static final Logger LOGGER = LogManager.getLogger();
 
     public static final String PROTOCOL_VERSION = "0";
 
-    public static final Map<String, CubicLevelHeightAccessor.WorldStyle> DIMENSION_TO_WORLD_STYLE = Util.make(new HashMap<>(), (set) -> {
-        set.put("minecraft:overworld", CubicLevelHeightAccessor.WorldStyle.CUBIC);
-        set.put("minecraft:the_nether", CubicLevelHeightAccessor.WorldStyle.CHUNK);
-        set.put("minecraft:the_end", CubicLevelHeightAccessor.WorldStyle.CHUNK);
-    });
+    public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve(MODID);
+    public static final Path WORLD_CONFIG_PATH = CONFIG_PATH.resolve("world");
 
-    private static final Config CONFIG = new Config();
+    private static CommonConfig commonConfig = new CommonConfig();
 
     public CubicChunks() {
         if (!(IChunkManager.class.isAssignableFrom(ChunkMap.class))) {
@@ -80,10 +82,17 @@ public class CubicChunks implements ModInitializer {
         //Custom CC Features
         CCPlacement.init();
         CCFeatures.init();
+        reloadListeners();
 
         if (SharedConstants.IS_RUNNING_IN_IDE) {
             cubicChunksTrapezoidHeightProviderTest();
         }
+    }
+
+    private static void reloadListeners() {
+        HeightSettingsReloadListener.registerHeightSettingsReloadListeners();
+        ChunkGeneratorSettingsReloadListener.registerChunkGeneratorSettingsReloadListeners();
+        WorldStyleReloadListener.registerWorldStyleReloadListeners();
     }
 
     private void cubicChunksTrapezoidHeightProviderTest() {
@@ -126,8 +135,16 @@ public class CubicChunks implements ModInitializer {
         }
     }
 
-    public static Config config() {
-        return CONFIG;
+    public static CommonConfig commonConfig() {
+        return commonConfig;
+    }
+
+    public static CommonConfig commonConfig(boolean isDirty) {
+        if (isDirty) {
+            commonConfig = new CommonConfig();
+        }
+
+        return commonConfig;
     }
 
     @Override
@@ -136,20 +153,5 @@ public class CubicChunks implements ModInitializer {
 
         Registry.register(Registry.BIOME_SOURCE, new ResourceLocation(MODID, "stripes"), StripedBiomeSource.CODEC);
 //        Registry.register(Registry.CHUNK_GENERATOR, new ResourceLocation(MODID, "generator"), CCNoiseBasedChunkGenerator.CODEC);
-    }
-
-    //TODO: Implement a file for this.
-    public static class Config {
-        public Client client = new Client();
-
-
-        public void markDirty() {
-
-        }
-
-
-        public static class Client {
-            public int verticalViewDistance = 8;
-        }
     }
 }

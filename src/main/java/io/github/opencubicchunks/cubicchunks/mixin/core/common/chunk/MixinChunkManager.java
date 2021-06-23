@@ -135,7 +135,6 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 public abstract class MixinChunkManager implements IChunkManager, IChunkMapInternal, IVerticalView, CubePlayerProvider {
 
     private static final double TICK_UPDATE_DISTANCE = 128.0;
-    private static final boolean USE_ASYNC_SERIALIZATION = true;
 
     @Shadow @Final ServerLevel level;
     @Shadow int viewDistance;
@@ -292,7 +291,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
 
                     return cubeFuture.join();
                 }).filter((cube) -> cube instanceof CubePrimerWrapper || cube instanceof BigCube)
-                    .map(cube1 -> USE_ASYNC_SERIALIZATION ? cubeSaveAsync(cube1) : CompletableFuture.completedFuture(cubeSave(cube1)))
+                    .map(cube1 -> CubicChunks.commonConfig().isAsyncChunkLoad() ? cubeSaveAsync(cube1) : CompletableFuture.completedFuture(cubeSave(cube1)))
                     .distinct().toArray(CompletableFuture[]::new);
                 for (CompletableFuture<Boolean> future : saveFutures) {
                     if (future.join()) {
@@ -458,7 +457,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
                         //net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.world.ChunkEvent.Unload((Chunk)cube));
                     }
 
-                    if (USE_ASYNC_SERIALIZATION) {
+                    if (CubicChunks.commonConfig().isAsyncChunkLoad()) {
                         this.cubeSaveAsync(icube);
                     } else {
                         this.cubeSave(icube);

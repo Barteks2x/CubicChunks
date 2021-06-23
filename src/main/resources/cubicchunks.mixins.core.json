@@ -64,6 +64,7 @@
         "common.world.lighting.MixinSectionLightStorage",
         "common.world.lighting.MixinWorldLightManager",
         "common.world.MixinAbstractChunkProvider",
+        "common.world.MixinConfiguredSurfaceBuilder",
         "common.world.MixinFuzzyOffsetConstantColumnBiomeZoomer",
         "common.world.MixinLevelHeightAccessor",
         "common.world.MixinNaturalSpawner",

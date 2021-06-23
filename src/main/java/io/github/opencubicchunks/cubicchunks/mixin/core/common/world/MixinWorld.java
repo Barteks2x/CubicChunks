@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 import io.github.opencubicchunks.cubicchunks.CubicChunks;
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.ICubeProvider;
+import io.github.opencubicchunks.cubicchunks.config.reloadlisteners.WorldStyleReloadListener;
 import io.github.opencubicchunks.cubicchunks.server.ICubicWorld;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.WritableLevelData;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,16 +31,17 @@ public abstract class MixinWorld implements ICubicWorld, LevelReader {
     private boolean generates2DChunks;
     private WorldStyle worldStyle;
 
+    @Shadow @Final public boolean isClientSide;
+
+    @Shadow public abstract ResourceKey<Level> dimension();
+
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void setCubic(WritableLevelData writableLevelData, ResourceKey<Level> resourceKey, DimensionType dimensionType, Supplier<ProfilerFiller> supplier, boolean bl, boolean bl2,
+    private void setCubic(WritableLevelData writableLevelData, ResourceKey<Level> resourceKey, DimensionType dimensionType, Supplier<ProfilerFiller> supplier, boolean isClient, boolean bl2,
                           long l, CallbackInfo ci) {
-        worldStyle = CubicChunks.DIMENSION_TO_WORLD_STYLE.get(dimension().location().toString());
+        worldStyle = this.isClientSide ? CubicChunks.currentClientStyle : WorldStyleReloadListener.WORLD_WORLD_STYLE.getOrDefault(resourceKey.location(), WorldStyle.CHUNK);
         isCubic = worldStyle.isCubic();
         generates2DChunks = worldStyle.generates2DChunks();
     }
-
-
-    @Shadow public abstract ResourceKey<Level> dimension();
 
     @Override public int getHeight() {
         if (!isCubic()) {
@@ -87,12 +90,6 @@ public abstract class MixinWorld implements ICubicWorld, LevelReader {
 
     @Override public boolean generates2DChunks() {
         return generates2DChunks;
-    }
-
-    @Override public void setWorldStyle(WorldStyle worldStyle) {
-        this.worldStyle = worldStyle;
-        this.isCubic = worldStyle.isCubic();
-        this.generates2DChunks = worldStyle.generates2DChunks();
     }
 
     @Override

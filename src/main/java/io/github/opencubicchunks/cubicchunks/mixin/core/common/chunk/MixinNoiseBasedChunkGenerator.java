@@ -8,14 +8,18 @@ import java.util.function.Supplier;
 import io.github.opencubicchunks.cubicchunks.chunk.CubicAquifer;
 import io.github.opencubicchunks.cubicchunks.chunk.NonAtomicWorldgenRandom;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureFeatureManager;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Aquifer;
 import net.minecraft.world.level.levelgen.BaseStoneSource;
 import net.minecraft.world.level.levelgen.Beardifier;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.NoiseModifier;
@@ -23,6 +27,7 @@ import net.minecraft.world.level.levelgen.NoiseSampler;
 import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
+import net.minecraft.world.level.levelgen.synth.SurfaceNoise;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -40,6 +45,13 @@ public abstract class MixinNoiseBasedChunkGenerator {
     @Shadow @Final private int cellHeight;
 
     @Mutable @Shadow @Final private int cellCountY;
+
+    @Shadow @Final private BaseStoneSource baseStoneSource;
+    @Shadow @Final protected BlockState defaultFluid;
+
+    @Shadow public abstract int getSeaLevel();
+
+    @Shadow @Final private SurfaceNoise surfaceNoise;
 
     @Inject(method = "<init>(Lnet/minecraft/world/level/biome/BiomeSource;Lnet/minecraft/world/level/biome/BiomeSource;JLjava/util/function/Supplier;)V", at = @At("RETURN"))
     private void init(BiomeSource biomeSource, BiomeSource biomeSource2, long l, Supplier<NoiseGeneratorSettings> supplier, CallbackInfo ci) {
@@ -102,6 +114,47 @@ public abstract class MixinNoiseBasedChunkGenerator {
     @Redirect(method = "buildSurfaceAndBedrock", at = @At(value = "NEW", target = "net/minecraft/world/level/levelgen/WorldgenRandom"))
     private WorldgenRandom createCarverRandom() {
         return new NonAtomicWorldgenRandom();
+    }
+
+    @Inject(method = "buildSurfaceAndBedrock", at = @At("HEAD"), cancellable = true)
+    private void fastBuildSurfaceAndBedrock(WorldGenRegion region, ChunkAccess chunk, CallbackInfo ci) {
+        if (!((CubicLevelHeightAccessor) chunk).isCubic()) {
+            return;
+        }
+        ci.cancel();
+
+        ChunkPos chunkPos = chunk.getPos();
+        int chunkX = chunkPos.x;
+        int chunkZ = chunkPos.z;
+        WorldgenRandom worldgenRandom = new NonAtomicWorldgenRandom();
+        worldgenRandom.setBaseChunkSeed(chunkX, chunkZ);
+        int minBlockX = chunkPos.getMinBlockX();
+        int minBlockZ = chunkPos.getMinBlockZ();
+        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
+
+        long seed = region.getSeed();
+
+        int fastMinSurfaceHeight = settings.get().getMinSurfaceLevel();
+
+        if (chunk.getMinBuildHeight() > fastMinSurfaceHeight) {
+            fastMinSurfaceHeight = chunk.getMinBuildHeight();
+        } else if (chunk.getMaxBuildHeight() < fastMinSurfaceHeight) {
+            fastMinSurfaceHeight = Integer.MAX_VALUE;
+        }
+
+        int seaLevel = this.getSeaLevel();
+        for (int moveX = 0; moveX < 16; ++moveX) {
+            for (int moveZ = 0; moveZ < 16; ++moveZ) {
+                int worldX = minBlockX + moveX;
+                int worldZ = minBlockZ + moveZ;
+                int worldSurfaceHeight = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, moveX, moveZ) + 1;
+                double surfaceNoise = this.surfaceNoise.getSurfaceNoiseValue((double) worldX * 0.0625D, (double) worldZ * 0.0625D, 0.0625D, (double) moveX * 0.0625D) * 15.0D;
+
+                region.getBiome(mutable.set(minBlockX + moveX, worldSurfaceHeight, minBlockZ + moveZ))
+                    .buildSurfaceAt(worldgenRandom, chunk, worldX, worldZ, worldSurfaceHeight, surfaceNoise, baseStoneSource.getBaseBlock(mutable), this.defaultFluid, seaLevel,
+                        fastMinSurfaceHeight, seed);
+            }
+        }
     }
 
     @Redirect(
