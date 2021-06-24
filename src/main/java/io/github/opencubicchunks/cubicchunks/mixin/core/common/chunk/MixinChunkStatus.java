@@ -3,10 +3,13 @@ package io.github.opencubicchunks.cubicchunks.mixin.core.common.chunk;
 import static io.github.opencubicchunks.cubicchunks.chunk.util.Utils.*;
 import static net.minecraft.core.Registry.BIOME_REGISTRY;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import com.mojang.datafixers.util.Either;
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
@@ -34,9 +37,14 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -60,12 +68,18 @@ public class MixinChunkStatus {
     // lambda$static$14 == FULL
     // lambda$static$15 == FULL (loading worker)
 
-    @SuppressWarnings({ "UnresolvedMixinReference", "target" })
+    @Mutable @Shadow @Final private int range;
 
-    //(Lnet/minecraft/world/chunk/ChunkStatus;Lnet/minecraft/world/server/ServerWorld;Lnet/minecraft/world/gen/feature/template/TemplateManager;
-    // Lnet/minecraft/world/server/ServerWorldLightManager;Ljava/util/function/Function;Lnet/minecraft/world/chunk/IChunk;
-    // Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;)V
 
+    @SuppressWarnings("InvalidInjectorMethodSignature") @Inject(method = "<init>", at = @At("RETURN"))
+    private void setLargerStatusForMobs(String string, @Nullable ChunkStatus chunkStatus, int i, EnumSet<Heightmap.Types> enumSet, ChunkStatus.ChunkType chunkType, @Coerce Object generationTask,
+                                        @Coerce Object loadingTask, CallbackInfo callbackInfo) {
+        if (string.equals("spawn")) {
+            this.range = 1; //TODO: Create a vertical range and make it for cubes ONLY.
+        }
+    }
+
+    @SuppressWarnings({ "UnresolvedMixinReference", "target"})
     @Inject(
         method = "lambda$static$0(Lnet/minecraft/world/level/chunk/ChunkStatus;Lnet/minecraft/server/level/ServerLevel;"
             + "Lnet/minecraft/world/level/levelgen/structure/templatesystem/StructureManager;Lnet/minecraft/server/level/ThreadedLevelLightEngine;Ljava/util/function/Function;"

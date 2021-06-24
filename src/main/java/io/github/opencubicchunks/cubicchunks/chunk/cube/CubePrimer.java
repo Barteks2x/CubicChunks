@@ -667,7 +667,7 @@ public class CubePrimer extends ProtoChunk implements IBigCube, CubicLevelHeight
                 }
             }
         }
-        return mutableBlockPos != null ? mutableBlockPos.immutable() : new BlockPos.MutableBlockPos().set(this.cubePos.minCubeX(), this.getHeight(type, this.cubePos.minCubeX() & 15,
+        return mutableBlockPos != null ? mutableBlockPos.immutable() : new BlockPos(this.cubePos.minCubeX(), this.getHeight(type, this.cubePos.minCubeX() & 15,
             this.cubePos.minCubeZ() & 15), this.cubePos.minCubeZ() & 15);
 
     }

@@ -106,6 +106,10 @@ public class CubeBiomeContainer extends ChunkBiomeContainer {
         containers[columnZ * IBigCube.DIAMETER_IN_SECTIONS + columnX] = container;
     }
 
+    public ChunkBiomeContainer getContainerForColumn(int columnX, int columnZ) {
+        return containers[columnZ * IBigCube.DIAMETER_IN_SECTIONS + columnX];
+    }
+
     @Override public int[] writeBiomes() {
         int totalLength = 0;
         Biome[][] allBiomes = new Biome[containers.length][];
