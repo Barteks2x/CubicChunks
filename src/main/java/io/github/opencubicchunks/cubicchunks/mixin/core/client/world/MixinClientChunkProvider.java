@@ -1,5 +1,7 @@
 package io.github.opencubicchunks.cubicchunks.mixin.core.client.world;
 
+import static io.github.opencubicchunks.cubicchunks.utils.Coords.*;
+
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import javax.annotation.Nullable;
@@ -61,10 +63,6 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
 
         this.cubeArray = new ClientChunkProviderCubeArray(adjustCubeViewDistance(viewDistance), adjustCubeViewDistance(CubicChunks.commonConfig().getVerticalViewDistance()), this.level);
         this.emptyCube = new EmptyCube(level, CubePos.of(0, 0, 0));
-    }
-
-    private int adjustCubeViewDistance(int viewDistance) {
-        return Math.max(2, Coords.sectionToCubeCeil(viewDistance)) + 3;
     }
 
     private static boolean isCubeValid(@Nullable BigCube cube, int x, int y, int z) {

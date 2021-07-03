@@ -367,6 +367,10 @@ public class Coords {
         return pos & 0xF;
     }
 
+    public static int adjustCubeViewDistance(int viewDistance) {
+        return Math.max(2, Coords.sectionToCubeCeil(viewDistance)) + 3;
+    }
+
     /**
      * @param cubePos The {@link CubePos}
      * @param i The index of the {@link ChunkSection} inside the {@link CubePos}

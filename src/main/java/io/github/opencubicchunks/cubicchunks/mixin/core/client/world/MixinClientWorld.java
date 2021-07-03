@@ -83,15 +83,14 @@ public abstract class MixinClientWorld extends Level implements IClientWorld {
     @Override public int getMinBuildHeight() {
         if (this.chunkSource != null) {
             ClientChunkProviderCubeArray cubeArray = ((IClientCubeProvider) this.chunkSource).getCubeArray();
-            return Coords.cubeToMinBlock(cubeArray.centerY - (cubeArray.verticalViewDistance  -4));
+            return Coords.cubeToMinBlock(cubeArray.centerY - Coords.adjustCubeViewDistance(CubicChunks.commonConfig().getVerticalViewDistance()));
         }
         return super.getMinBuildHeight();
     }
 
     @Override public int getHeight() {
         if (this.chunkSource != null) {
-            ClientChunkProviderCubeArray cubeArray = ((IClientCubeProvider) this.chunkSource).getCubeArray();
-            return Coords.cubeToMaxBlock((cubeArray.verticalViewDistance - 4) * 2) + 1;
+            return Coords.cubeToMinBlock(Coords.adjustCubeViewDistance(CubicChunks.commonConfig().getVerticalViewDistance() * 2 + 1));
         }
         return super.getHeight();
     }
