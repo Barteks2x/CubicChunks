@@ -70,4 +70,16 @@ public class ClientChunkProviderCubeArray {
     public BigCube get(int chunkIndex) {
         return this.cubes.get(chunkIndex);
     }
+
+    public int getCenterX() {
+        return centerX;
+    }
+
+    public int getCenterY() {
+        return centerY;
+    }
+
+    public int getCenterZ() {
+        return centerZ;
+    }
 }

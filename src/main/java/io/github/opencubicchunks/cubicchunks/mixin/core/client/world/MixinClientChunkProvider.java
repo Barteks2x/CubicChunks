@@ -1,5 +1,7 @@
 package io.github.opencubicchunks.cubicchunks.mixin.core.client.world;
 
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
 import javax.annotation.Nullable;
 
 import io.github.opencubicchunks.cubicchunks.CubicChunks;
@@ -15,10 +17,12 @@ import io.github.opencubicchunks.cubicchunks.world.client.IClientWorld;
 import io.github.opencubicchunks.cubicchunks.world.lighting.IWorldLightManager;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.chunk.ChunkBiomeContainer;
 import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.apache.logging.log4j.Logger;
@@ -140,6 +144,18 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         this.cubeArray.centerZ = Coords.sectionToCube(sectionZ);
     }
 
+    @Override public int getCenterX() {
+        return this.cubeArray.centerX;
+    }
+
+    @Override public int getCenterY() {
+        return this.cubeArray.centerY;
+    }
+
+    @Override public int getCenterZ() {
+        return this.cubeArray.centerZ;
+    }
+
     @Override
     public void updateCubeViewRadius(int hDistance, int vDistance) {
         if (level != null) {
@@ -189,6 +205,31 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         //noinspection ConstantConditions
         cir.setReturnValue("Client Chunk Cache: " + ((ClientChunkProviderChunkArrayAccess) (Object) this.storage).getChunks().length() + ", " + this.getLoadedChunksCount() +
             " | " + this.cubeArray.cubes.length() + ", " + getLoadedCubesCount());
+    }
+
+    @Override public void updateChunkSectionArrays(Direction.AxisDirection axisDirection) {
+        AtomicReferenceArray<LevelChunk> chunks = ((ClientChunkProviderChunkArrayAccess) (Object) this.storage).getChunks();
+        for (int chunkIdx = 0; chunkIdx < chunks.length(); chunkIdx++) {
+            LevelChunk chunk = chunks.get(chunkIdx);
+            LevelChunkSection[] sections = new LevelChunkSection[chunk.getSections().length];
+
+            if (axisDirection == Direction.AxisDirection.POSITIVE) {
+                for (int idx = 2; idx < sections.length; idx++) {
+                    sections[idx - 2] = chunk.getSections()[idx];
+                }
+                for (int idx2 = 0; idx2 < sections.length; idx2++) {
+                    chunk.getSections()[idx2] = sections[idx2];
+                }
+            } else {
+                for (int idx = 0; idx < sections.length - 2; idx++) {
+                    sections[idx + 2] = chunk.getSections()[idx];
+                }
+
+                for (int idx = 0; idx < sections.length; idx++) {
+                    chunk.getSections()[idx] = sections[idx];
+                }
+            }
+        }
     }
 
     public int getLoadedCubesCount() {

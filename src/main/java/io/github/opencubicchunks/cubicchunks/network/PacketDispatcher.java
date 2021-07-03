@@ -51,6 +51,8 @@ public class PacketDispatcher {
             PacketHeightmapChanges::new, PacketHeightmapChanges.Handler::handle);
         registerMessage("levelinfo", PacketCCLevelInfo.class, PacketCCLevelInfo::encode,
             PacketCCLevelInfo::new, PacketCCLevelInfo.Handler::handle, true);
+        registerMessage("chunksections", UpdateClientChunkSectionArray.class, UpdateClientChunkSectionArray::encode,
+            UpdateClientChunkSectionArray::new, UpdateClientChunkSectionArray.Handler::handle);
 //                CHANNEL.registerMessage("init", PacketCubicWorldInit.class, PacketCubicWorldInit::encode,
 //                        PacketCubicWorldInit::new, PacketCubicWorldInit::handle));
     }

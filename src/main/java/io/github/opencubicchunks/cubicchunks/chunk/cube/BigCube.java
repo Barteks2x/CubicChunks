@@ -195,17 +195,25 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
         generates2DChunks = ((CubicLevelHeightAccessor) worldIn).generates2DChunks();
         worldStyle = ((CubicLevelHeightAccessor) worldIn).worldStyle();
 
-        if (!this.level.isClientSide) {
-            for (int xSection = 0; xSection < IBigCube.DIAMETER_IN_SECTIONS; xSection++) {
-                for (int zSection = 0; zSection < IBigCube.DIAMETER_IN_SECTIONS; zSection++) {
+        for (int xSection = 0; xSection < IBigCube.DIAMETER_IN_SECTIONS; xSection++) {
+            for (int zSection = 0; zSection < IBigCube.DIAMETER_IN_SECTIONS; zSection++) {
 
-                    ChunkPos chunkPos = this.cubePos.asChunkPos(xSection, zSection);
-                    LevelChunk chunk = this.level.getChunk(chunkPos.x, chunkPos.z);
-                    for (int ySection = 0; ySection < IBigCube.DIAMETER_IN_SECTIONS; ySection++) {
-                        LevelChunkSection section =
-                            this.sections[sectionToIndex(cubeToSection(cubePosIn.getX(), xSection), cubeToSection(cubePosIn.getY(), ySection), cubeToSection(cubePosIn.getZ(), zSection))];
+                ChunkPos chunkPos = this.cubePos.asChunkPos(xSection, zSection);
+                if (level.getChunkSource() == null) {
+                    continue;
+                }
+
+                LevelChunk chunk = this.level.getChunk(chunkPos.x, chunkPos.z);
+
+                for (int ySection = 0; ySection < IBigCube.DIAMETER_IN_SECTIONS; ySection++) {
+                    int chunkSectionY = cubeToSection(cubePosIn.getY(), ySection);
+                    LevelChunkSection section =
+                        this.sections[sectionToIndex(cubeToSection(cubePosIn.getX(), xSection), chunkSectionY, cubeToSection(cubePosIn.getZ(), zSection))];
+                    if (!this.level.isClientSide) {
                         ((ChunkActiveSections) chunk).activeSections()
-                            .add(section == null ? new LevelChunkSection(Coords.sectionToMinBlock(cubeToSection(cubePosIn.getY(), ySection))) : section);
+                            .add(section == null ? new LevelChunkSection(Coords.sectionToMinBlock(chunkSectionY)) : section);
+                    } else {
+                        chunk.getSections()[chunk.getSectionIndexFromSectionY(chunkSectionY)] = section;
                     }
                 }
             }
@@ -1084,93 +1092,93 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
         return generates2DChunks;
     }
 
-    public static class RebindableTickingBlockEntityWrapper implements TickingBlockEntity {
-        private TickingBlockEntity ticker;
+public static class RebindableTickingBlockEntityWrapper implements TickingBlockEntity {
+    private TickingBlockEntity ticker;
 
-        private RebindableTickingBlockEntityWrapper(TickingBlockEntity tickingBlockEntity) {
-            this.ticker = tickingBlockEntity;
-        }
-
-        private void rebind(TickingBlockEntity tickingBlockEntity) {
-            this.ticker = tickingBlockEntity;
-        }
-
-        public void tick() {
-            this.ticker.tick();
-        }
-
-        public boolean isRemoved() {
-            return this.ticker.isRemoved();
-        }
-
-        public BlockPos getPos() {
-            return this.ticker.getPos();
-        }
-
-        public String getType() {
-            return this.ticker.getType();
-        }
-
-        public String toString() {
-            return this.ticker.toString() + " <wrapped>";
-        }
+    private RebindableTickingBlockEntityWrapper(TickingBlockEntity tickingBlockEntity) {
+        this.ticker = tickingBlockEntity;
     }
 
-    public class BoundTickingBlockEntity<T extends BlockEntity> implements TickingBlockEntity {
-        private final T blockEntity;
-        private final BlockEntityTicker<T> ticker;
-        private boolean loggedInvalidBlockState;
+    private void rebind(TickingBlockEntity tickingBlockEntity) {
+        this.ticker = tickingBlockEntity;
+    }
 
-        private BoundTickingBlockEntity(T blockEntity, BlockEntityTicker<T> blockEntityTicker) {
-            this.blockEntity = blockEntity;
-            this.ticker = blockEntityTicker;
-        }
+    public void tick() {
+        this.ticker.tick();
+    }
 
-        public void tick() {
-            if (!this.blockEntity.isRemoved() && this.blockEntity.hasLevel()) {
-                BlockPos blockPos = this.blockEntity.getBlockPos();
-                if (BigCube.this.isTicking(blockPos)) {
-                    try {
-                        ProfilerFiller profilerFiller = BigCube.this.level.getProfiler();
-                        profilerFiller.push(this::getType);
-                        BlockState blockState = BigCube.this.getBlockState(blockPos);
-                        if (this.blockEntity.getType().isValid(blockState)) {
-                            this.ticker.tick(BigCube.this.level, this.blockEntity.getBlockPos(), blockState, this.blockEntity);
-                            this.loggedInvalidBlockState = false;
-                        } else if (!this.loggedInvalidBlockState) {
-                            this.loggedInvalidBlockState = true;
-                            BigCube.LOGGER.warn("Block entity {} @ {} state {} invalid for ticking:", new org.apache.logging.log4j.util.Supplier[] { this::getType, this::getPos, () -> {
-                                return blockState;
-                            } });
-                        }
+    public boolean isRemoved() {
+        return this.ticker.isRemoved();
+    }
 
-                        profilerFiller.pop();
-                    } catch (Throwable var5) {
-                        CrashReport crashReport = CrashReport.forThrowable(var5, "Ticking block entity");
-                        CrashReportCategory crashReportCategory = crashReport.addCategory("Block entity being ticked");
-                        this.blockEntity.fillCrashReportCategory(crashReportCategory);
-                        throw new ReportedException(crashReport);
+    public BlockPos getPos() {
+        return this.ticker.getPos();
+    }
+
+    public String getType() {
+        return this.ticker.getType();
+    }
+
+    public String toString() {
+        return this.ticker.toString() + " <wrapped>";
+    }
+}
+
+public class BoundTickingBlockEntity<T extends BlockEntity> implements TickingBlockEntity {
+    private final T blockEntity;
+    private final BlockEntityTicker<T> ticker;
+    private boolean loggedInvalidBlockState;
+
+    private BoundTickingBlockEntity(T blockEntity, BlockEntityTicker<T> blockEntityTicker) {
+        this.blockEntity = blockEntity;
+        this.ticker = blockEntityTicker;
+    }
+
+    public void tick() {
+        if (!this.blockEntity.isRemoved() && this.blockEntity.hasLevel()) {
+            BlockPos blockPos = this.blockEntity.getBlockPos();
+            if (BigCube.this.isTicking(blockPos)) {
+                try {
+                    ProfilerFiller profilerFiller = BigCube.this.level.getProfiler();
+                    profilerFiller.push(this::getType);
+                    BlockState blockState = BigCube.this.getBlockState(blockPos);
+                    if (this.blockEntity.getType().isValid(blockState)) {
+                        this.ticker.tick(BigCube.this.level, this.blockEntity.getBlockPos(), blockState, this.blockEntity);
+                        this.loggedInvalidBlockState = false;
+                    } else if (!this.loggedInvalidBlockState) {
+                        this.loggedInvalidBlockState = true;
+                        BigCube.LOGGER.warn("Block entity {} @ {} state {} invalid for ticking:", new org.apache.logging.log4j.util.Supplier[] { this::getType, this::getPos, () -> {
+                            return blockState;
+                        } });
                     }
+
+                    profilerFiller.pop();
+                } catch (Throwable var5) {
+                    CrashReport crashReport = CrashReport.forThrowable(var5, "Ticking block entity");
+                    CrashReportCategory crashReportCategory = crashReport.addCategory("Block entity being ticked");
+                    this.blockEntity.fillCrashReportCategory(crashReportCategory);
+                    throw new ReportedException(crashReport);
                 }
             }
-
         }
 
-        public boolean isRemoved() {
-            return this.blockEntity.isRemoved();
-        }
-
-        public BlockPos getPos() {
-            return this.blockEntity.getBlockPos();
-        }
-
-        public String getType() {
-            return BlockEntityType.getKey(this.blockEntity.getType()).toString();
-        }
-
-        public String toString() {
-            return "Level ticker for " + this.getType() + "@" + this.getPos();
-        }
     }
+
+    public boolean isRemoved() {
+        return this.blockEntity.isRemoved();
+    }
+
+    public BlockPos getPos() {
+        return this.blockEntity.getBlockPos();
+    }
+
+    public String getType() {
+        return BlockEntityType.getKey(this.blockEntity.getType()).toString();
+    }
+
+    public String toString() {
+        return "Level ticker for " + this.getType() + "@" + this.getPos();
+    }
+}
 
 }

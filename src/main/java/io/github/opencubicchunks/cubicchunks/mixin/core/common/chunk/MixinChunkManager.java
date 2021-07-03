@@ -65,6 +65,7 @@ import io.github.opencubicchunks.cubicchunks.network.PacketHeightmap;
 import io.github.opencubicchunks.cubicchunks.network.PacketUnloadCube;
 import io.github.opencubicchunks.cubicchunks.network.PacketUpdateCubePosition;
 import io.github.opencubicchunks.cubicchunks.network.PacketUpdateLight;
+import io.github.opencubicchunks.cubicchunks.network.UpdateClientChunkSectionArray;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.server.IServerChunkProvider;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
@@ -84,6 +85,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.CrashReportCategory;
 import net.minecraft.ReportedException;
 import net.minecraft.Util;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -1234,8 +1236,16 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
     // func_223489_c, updatePlayerPos
     private SectionPos updatePlayerCubePos(ServerPlayer serverPlayerEntityIn) {
         SectionPos sectionpos = SectionPos.of(serverPlayerEntityIn);
+
+        if (Coords.sectionToCube(serverPlayerEntityIn.getLastSectionPos().y()) > Coords.sectionToCube(sectionpos.getY())) {
+            PacketDispatcher.sendTo(new UpdateClientChunkSectionArray(Direction.AxisDirection.NEGATIVE), serverPlayerEntityIn);
+        } else if (Coords.sectionToCube(serverPlayerEntityIn.getLastSectionPos().y()) < Coords.sectionToCube(sectionpos.getY())){
+            PacketDispatcher.sendTo(new UpdateClientChunkSectionArray(Direction.AxisDirection.POSITIVE), serverPlayerEntityIn);
+        }
+
         serverPlayerEntityIn.setLastSectionPos(sectionpos);
         PacketDispatcher.sendTo(new PacketUpdateCubePosition(sectionpos), serverPlayerEntityIn);
+
         serverPlayerEntityIn.connection.send(new ClientboundSetChunkCacheCenterPacket(sectionpos.x(), sectionpos.z()));
         return sectionpos;
     }

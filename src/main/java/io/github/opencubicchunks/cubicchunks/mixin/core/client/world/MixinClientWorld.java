@@ -2,11 +2,15 @@ package io.github.opencubicchunks.cubicchunks.mixin.core.client.world;
 
 import java.util.function.Supplier;
 
+import io.github.opencubicchunks.cubicchunks.CubicChunks;
+import io.github.opencubicchunks.cubicchunks.chunk.IClientCubeProvider;
 import io.github.opencubicchunks.cubicchunks.chunk.ImposterChunkPos;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.BigCube;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.world.client.IClientWorld;
 import io.github.opencubicchunks.cubicchunks.world.entity.IsCubicEntityContext;
+import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -30,6 +34,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinClientWorld extends Level implements IClientWorld {
 
     @Shadow @Final private TransientEntitySectionManager<Entity> entityStorage;
+
+    @Shadow @Final private ClientChunkCache chunkSource;
 
     protected MixinClientWorld(WritableLevelData p_i231617_1_, ResourceKey<Level> p_i231617_2_, DimensionType p_i231617_4_,
                                Supplier<ProfilerFiller> p_i231617_5_, boolean p_i231617_6_, boolean p_i231617_7_, long p_i231617_8_) {
@@ -71,5 +77,23 @@ public abstract class MixinClientWorld extends Level implements IClientWorld {
         if (!((CubicLevelHeightAccessor) this).isCubic()) {
             transientEntitySectionManager.stopTicking(pos);
         }
+    }
+
+    @Override public int getMinBuildHeight() {
+        if (this.chunkSource != null) {
+            int cubeSection = ((IClientCubeProvider) this.chunkSource).getCenterY();
+            int range = Coords.sectionToCube(CubicChunks.commonConfig().getVerticalViewDistance());
+            return Coords.cubeToMinBlock(cubeSection - range);
+        }
+        return super.getMinBuildHeight();
+    }
+
+    @Override public int getHeight() {
+        if (this.chunkSource != null) {
+            int cubeSection = ((IClientCubeProvider) this.chunkSource).getCenterY();
+            int range = Coords.sectionToCube(CubicChunks.commonConfig().getVerticalViewDistance()) + 1;
+            return Coords.cubeToMaxBlock((cubeSection + range));
+        }
+        return super.getHeight();
     }
 }

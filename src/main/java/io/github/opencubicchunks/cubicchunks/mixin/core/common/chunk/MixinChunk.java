@@ -24,6 +24,7 @@ import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.world.lighting.ISkyLightColumnChecker;
 import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
+import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.server.level.ServerLevel;
@@ -35,6 +36,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkBiomeContainer;
+import net.minecraft.world.level.chunk.ChunkSource;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -70,6 +72,7 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
 
     private Heightmap lightHeightmap;
     private CubeMap cubeMap;
+    private ChunkSource cache;
 
     private final ObjectAVLTreeSet<LevelChunkSection> activeSections = new ObjectAVLTreeSet<>(Comparator.comparingInt(LevelChunkSection::bottomBlockY));
 
@@ -124,6 +127,10 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
         }
         // TODO might want 4 columns that share the same BigCubes to have a reference to the same CubeMap?
         cubeMap = new CubeMap();
+
+        if (level.isClientSide) {
+            this.cache = level.getChunkSource();
+        }
     }
 
     @Inject(
@@ -171,7 +178,7 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
             + "Ljava/util/function/Consumer;)V",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getSectionsCount()I"))
     private int getFakeSectionCount(Level levelIn) {
-        if (!((CubicLevelHeightAccessor) levelIn).isCubic()) { // The fields are not initialized here yet.
+        if (!((CubicLevelHeightAccessor) levelIn).isCubic() || levelIn.isClientSide) { // The fields are not initialized here yet.
             return levelIn.getSectionsCount();
         }
 
@@ -180,7 +187,7 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
 
     @Inject(method = "getSections", at = @At("HEAD"), cancellable = true)
     private void getActiveSections(CallbackInfoReturnable<LevelChunkSection[]> cir) {
-        if (this.isCubic) {
+        if (this.isCubic && !this.level.isClientSide) {
             cir.setReturnValue(this.activeSections.toArray(new LevelChunkSection[0]));
         }
     }
