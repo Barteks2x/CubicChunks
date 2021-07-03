@@ -3,6 +3,7 @@ package io.github.opencubicchunks.cubicchunks.mixin.core.client.world;
 import java.util.function.Supplier;
 
 import io.github.opencubicchunks.cubicchunks.CubicChunks;
+import io.github.opencubicchunks.cubicchunks.chunk.ClientChunkProviderCubeArray;
 import io.github.opencubicchunks.cubicchunks.chunk.IClientCubeProvider;
 import io.github.opencubicchunks.cubicchunks.chunk.ImposterChunkPos;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.BigCube;

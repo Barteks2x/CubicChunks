@@ -20,11 +20,11 @@ import io.github.opencubicchunks.cubicchunks.chunk.heightmap.ClientSurfaceTracke
 import io.github.opencubicchunks.cubicchunks.chunk.heightmap.LightSurfaceTrackerWrapper;
 import io.github.opencubicchunks.cubicchunks.chunk.heightmap.SurfaceTrackerWrapper;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.chunk.ChunkArrayResizer;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.world.lighting.ISkyLightColumnChecker;
 import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
-import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.server.level.ServerLevel;
@@ -46,6 +46,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.Fluid;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
@@ -57,7 +58,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = LevelChunk.class, priority = 0) //Priority 0 to always ensure our redirects are on top. Should also prevent fabric api crashes that have occur(ed) here. See removeTileEntity
 
-public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, CubeMapGetter, CubicLevelHeightAccessor, ChunkCubeGetter, ChunkActiveSections {
+public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, CubeMapGetter, CubicLevelHeightAccessor, ChunkCubeGetter, ChunkActiveSections, ChunkArrayResizer {
 
     @Shadow @Final private Level level;
     @Shadow @Final private ChunkPos chunkPos;
@@ -81,6 +82,8 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
     @Shadow protected abstract boolean isInLevel();
 
     @Shadow public abstract Level getLevel();
+
+    @Mutable @Shadow @Final private LevelChunkSection[] sections;
 
     @Override public boolean isYSpaceEmpty(int startY, int endY) {
         return false;
@@ -368,4 +371,7 @@ public abstract class MixinChunk implements ChunkAccess, LightHeightmapGetter, C
         return generates2DChunks;
     }
 
+    @Override public void resizeSectionsArray() {
+       this.sections = new LevelChunkSection[this.level.getSectionsCount()];
+    }
 }

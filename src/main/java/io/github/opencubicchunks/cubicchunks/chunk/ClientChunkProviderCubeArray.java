@@ -19,7 +19,7 @@ public class ClientChunkProviderCubeArray {
     public int loaded;
 
     private final int horizontalSideLength;
-    private final int verticalSideLength;
+    public final int verticalSideLength;
     private final ClientLevel world;
     private final int sideArea;
 

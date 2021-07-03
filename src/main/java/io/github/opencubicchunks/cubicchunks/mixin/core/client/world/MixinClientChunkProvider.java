@@ -11,6 +11,7 @@ import io.github.opencubicchunks.cubicchunks.chunk.cube.BigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.EmptyCube;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.mixin.access.client.ClientChunkProviderChunkArrayAccess;
+import io.github.opencubicchunks.cubicchunks.chunk.ChunkArrayResizer;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.world.client.IClientWorld;
@@ -190,6 +191,11 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         }
 
         this.cubeArray = array;
+        this.resizeChunkArrays();
+    }
+
+    @Override public ClientChunkProviderCubeArray getCubeArray() {
+        return this.cubeArray;
     }
 
     /**
@@ -211,6 +217,9 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         AtomicReferenceArray<LevelChunk> chunks = ((ClientChunkProviderChunkArrayAccess) (Object) this.storage).getChunks();
         for (int chunkIdx = 0; chunkIdx < chunks.length(); chunkIdx++) {
             LevelChunk chunk = chunks.get(chunkIdx);
+            if (chunk == null) {
+                continue;
+            }
             LevelChunkSection[] sections = new LevelChunkSection[chunk.getSections().length];
 
             if (axisDirection == Direction.AxisDirection.POSITIVE) {
@@ -229,6 +238,17 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
                     chunk.getSections()[idx] = sections[idx];
                 }
             }
+        }
+    }
+
+    @Override public void resizeChunkArrays() {
+        AtomicReferenceArray<LevelChunk> chunks = ((ClientChunkProviderChunkArrayAccess) (Object) this.storage).getChunks();
+        for (int chunkIdx = 0; chunkIdx < chunks.length(); chunkIdx++) {
+            LevelChunk chunk = chunks.get(chunkIdx);
+            if (chunk == null) {
+                continue;
+            }
+            ((ChunkArrayResizer) chunk).resizeSectionsArray();
         }
     }
 

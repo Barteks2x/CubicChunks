@@ -3,6 +3,7 @@ package io.github.opencubicchunks.cubicchunks.mixin.optifine.client.vanilla;
 import javax.annotation.Nullable;
 
 import io.github.opencubicchunks.cubicchunks.CubicChunks;
+import io.github.opencubicchunks.cubicchunks.chunk.IClientCubeProvider;
 import io.github.opencubicchunks.cubicchunks.mixin.access.client.ViewFrustumAccess;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import net.minecraft.client.Camera;
@@ -50,6 +51,7 @@ public abstract class MixinWorldRenderer_Vanilla {
         if (this.minecraft.options.renderDistance != this.lastViewDistance) return;
         if (this.lastVerticalViewDistance != CubicChunks.commonConfig().getVerticalViewDistance()) {
             this.allChanged();
+//            ((IClientCubeProvider) this.level.getChunkSource()).resizeChunkArrays();
         }
     }
 

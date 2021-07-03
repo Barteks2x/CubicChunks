@@ -1406,7 +1406,7 @@ public abstract class MixinChunkManager implements IChunkManager, IChunkMapInter
         if (chunkOrError == null) {
             return;
         }
-        chunkOrError.ifLeft(chunk -> PacketDispatcher.sendTo(PacketHeightmap.forChunk(chunk), player));
+//        chunkOrError.ifLeft(chunk -> PacketDispatcher.sendTo(PacketHeightmap.forChunk(chunk), player));
     }
 
     // func_219174_c, getTickingGenerated

@@ -22,6 +22,10 @@ public interface IClientCubeProvider extends ICubeProvider {
 
     void updateChunkSectionArrays(Direction.AxisDirection axisDirection);
 
+    void resizeChunkArrays();
+
+    ClientChunkProviderCubeArray getCubeArray();
+
     void updateCubeViewRadius(int hDistance, int vDistance);
 
     BigCube replaceWithPacketData(int cubeX, int cubeY, int cubeZ, @Nullable ChunkBiomeContainer biomes, FriendlyByteBuf readBuffer, CompoundTag nbtTagIn,

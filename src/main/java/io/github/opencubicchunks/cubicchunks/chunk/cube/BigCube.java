@@ -213,12 +213,21 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
                         ((ChunkActiveSections) chunk).activeSections()
                             .add(section == null ? new LevelChunkSection(Coords.sectionToMinBlock(chunkSectionY)) : section);
                     } else {
-                        chunk.getSections()[chunk.getSectionIndexFromSectionY(chunkSectionY)] = section;
+                        int sectionIndexFromSectionY = chunk.getSectionIndexFromSectionY(chunkSectionY);
+                        LevelChunkSection[] chunkSections = chunk.getSections();
+                        chunkSections[sectionIndexFromSectionY] = section;
+
+                        if (sectionIndexFromSectionY > highestIndex) {
+                            highestIndex = sectionIndexFromSectionY;
+                            System.out.println("Highest index: " + highestIndex + " for chunk section array size: " + (chunkSections.length - 1));
+                        }
                     }
                 }
             }
         }
     }
+
+    private static int highestIndex = 0;
 
     public BigCube(Level worldIn, CubePrimer cubePrimer, @Nullable Consumer<BigCube> postLoadConsumerIn) {
         //TODO: reimplement full BigCube constructor from CubePrimer
