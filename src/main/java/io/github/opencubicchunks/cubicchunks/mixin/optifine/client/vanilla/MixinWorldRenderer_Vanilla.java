@@ -51,7 +51,7 @@ public abstract class MixinWorldRenderer_Vanilla {
         if (this.minecraft.options.renderDistance != this.lastViewDistance) return;
         if (this.lastVerticalViewDistance != CubicChunks.commonConfig().getVerticalViewDistance()) {
             this.allChanged();
-//            ((IClientCubeProvider) this.level.getChunkSource()).resizeChunkArrays();
+//            ((IClientCubeProvider) this.level.getChunkSource()).resizeAndFillChunkArrays();
         }
     }
 

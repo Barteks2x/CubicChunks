@@ -22,7 +22,7 @@ public interface IClientCubeProvider extends ICubeProvider {
 
     void updateChunkSectionArrays(Direction.AxisDirection axisDirection);
 
-    void resizeChunkArrays();
+    void resizeAndFillChunkArrays();
 
     ClientChunkProviderCubeArray getCubeArray();
 

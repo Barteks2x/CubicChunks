@@ -5,13 +5,14 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import javax.annotation.Nullable;
 
 import io.github.opencubicchunks.cubicchunks.CubicChunks;
+import io.github.opencubicchunks.cubicchunks.chunk.ChunkArrayResizer;
 import io.github.opencubicchunks.cubicchunks.chunk.ClientChunkProviderCubeArray;
+import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.IClientCubeProvider;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.BigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.EmptyCube;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.mixin.access.client.ClientChunkProviderChunkArrayAccess;
-import io.github.opencubicchunks.cubicchunks.chunk.ChunkArrayResizer;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.world.client.IClientWorld;
@@ -21,6 +22,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkBiomeContainer;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -191,7 +193,7 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         }
 
         this.cubeArray = array;
-        this.resizeChunkArrays();
+        this.resizeAndFillChunkArrays();
     }
 
     @Override public ClientChunkProviderCubeArray getCubeArray() {
@@ -241,7 +243,7 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
         }
     }
 
-    @Override public void resizeChunkArrays() {
+    @Override public void resizeAndFillChunkArrays() {
         AtomicReferenceArray<LevelChunk> chunks = ((ClientChunkProviderChunkArrayAccess) (Object) this.storage).getChunks();
         for (int chunkIdx = 0; chunkIdx < chunks.length(); chunkIdx++) {
             LevelChunk chunk = chunks.get(chunkIdx);
@@ -249,6 +251,30 @@ public abstract class MixinClientChunkProvider implements IClientCubeProvider {
                 continue;
             }
             ((ChunkArrayResizer) chunk).resizeSectionsArray();
+        }
+
+        AtomicReferenceArray<BigCube> cubes = this.cubeArray.cubes;
+
+        for (int cubeIdx = 0; cubeIdx < cubes.length(); cubeIdx++) {
+            BigCube cube = cubeArray.get(cubeIdx);
+            if (cube == null) {
+                continue;
+            }
+            CubePos cubePos = cube.getCubePos();
+
+            for (int xSection = 0; xSection < IBigCube.DIAMETER_IN_SECTIONS; xSection++) {
+                for (int zSection = 0; zSection < IBigCube.DIAMETER_IN_SECTIONS; zSection++) {
+
+                    ChunkPos chunkPos = cubePos.asChunkPos(xSection, zSection);
+                    if (level.getChunkSource() == null) {
+                        continue;
+                    }
+
+                    LevelChunk chunk = this.level.getChunk(chunkPos.x, chunkPos.z);
+
+                    cube.fillChunkSectionArrays(cubePos, xSection, zSection, chunk);
+                }
+            }
         }
     }
 

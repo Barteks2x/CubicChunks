@@ -205,23 +205,27 @@ public class BigCube implements ChunkAccess, IBigCube, CubicLevelHeightAccessor 
 
                 LevelChunk chunk = this.level.getChunk(chunkPos.x, chunkPos.z);
 
-                for (int ySection = 0; ySection < IBigCube.DIAMETER_IN_SECTIONS; ySection++) {
-                    int chunkSectionY = cubeToSection(cubePosIn.getY(), ySection);
-                    LevelChunkSection section =
-                        this.sections[sectionToIndex(cubeToSection(cubePosIn.getX(), xSection), chunkSectionY, cubeToSection(cubePosIn.getZ(), zSection))];
-                    if (!this.level.isClientSide) {
-                        ((ChunkActiveSections) chunk).activeSections()
-                            .add(section == null ? new LevelChunkSection(Coords.sectionToMinBlock(chunkSectionY)) : section);
-                    } else {
-                        int sectionIndexFromSectionY = chunk.getSectionIndexFromSectionY(chunkSectionY);
-                        LevelChunkSection[] chunkSections = chunk.getSections();
-                        chunkSections[sectionIndexFromSectionY] = section;
+                fillChunkSectionArrays(cubePosIn, xSection, zSection, chunk);
+            }
+        }
+    }
 
-                        if (sectionIndexFromSectionY > highestIndex) {
-                            highestIndex = sectionIndexFromSectionY;
-                            System.out.println("Highest index: " + highestIndex + " for chunk section array size: " + (chunkSections.length - 1));
-                        }
-                    }
+    public void fillChunkSectionArrays(CubePos cubePosIn, int xSection, int zSection, LevelChunk chunk) {
+        for (int ySection = 0; ySection < IBigCube.DIAMETER_IN_SECTIONS; ySection++) {
+            int chunkSectionY = cubeToSection(cubePosIn.getY(), ySection);
+            LevelChunkSection section =
+                this.sections[sectionToIndex(cubeToSection(cubePosIn.getX(), xSection), chunkSectionY, cubeToSection(cubePosIn.getZ(), zSection))];
+            if (!this.level.isClientSide) {
+                ((ChunkActiveSections) chunk).activeSections()
+                    .add(section == null ? new LevelChunkSection(Coords.sectionToMinBlock(chunkSectionY)) : section);
+            } else {
+                int sectionIndexFromSectionY = chunk.getSectionIndexFromSectionY(chunkSectionY);
+                LevelChunkSection[] chunkSections = chunk.getSections();
+                chunkSections[sectionIndexFromSectionY] = section;
+
+                if (sectionIndexFromSectionY > highestIndex) {
+                    highestIndex = sectionIndexFromSectionY;
+                    System.out.println("Highest index: " + highestIndex + " for chunk section array size: " + (chunkSections.length - 1));
                 }
             }
         }
