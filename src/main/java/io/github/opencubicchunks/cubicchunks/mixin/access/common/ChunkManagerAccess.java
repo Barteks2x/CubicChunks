@@ -16,4 +16,6 @@ public interface ChunkManagerAccess {
     @Invoker boolean invokePromoteChunkMap();
     @Invoker void invokeOnFullChunkStatusChange(ChunkPos chunkPos, ChunkHolder.FullChunkStatus fullChunkStatus);
     @Accessor int getViewDistance();
+
+    @Invoker void invokeReleaseLightTicket(ChunkPos pos);
 }

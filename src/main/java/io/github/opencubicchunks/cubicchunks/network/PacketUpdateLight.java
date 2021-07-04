@@ -110,11 +110,7 @@ public class PacketUpdateLight {
             Iterator<byte[]> blockIterator = packet.blockLightData.iterator();
 
             for (int i = 0; i < IBigCube.SECTION_COUNT; ++i) {
-                SectionPos sectionPos = SectionPos.of(
-                    packet.cubePos.getX() + Coords.indexToX(i),
-                    packet.cubePos.getY() + Coords.indexToY(i),
-                    packet.cubePos.getZ() + Coords.indexToZ(i)
-                );
+                SectionPos sectionPos = Coords.sectionPosByIndex(packet.cubePos, i);
 
                 if (packet.dataExists.get(i * 2)) {
                     worldlightmanager.queueSectionData(LightLayer.SKY, sectionPos, new DataLayer(skyIterator.next()), packet.lightFlag);

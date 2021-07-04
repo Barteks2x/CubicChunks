@@ -90,11 +90,11 @@ public abstract class MixinMinecraftServer {
             this.waitUntilNextTick();
         }
 
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            int ignored = 0;
-        }
+//        try {
+//            Thread.sleep(10000);
+//        } catch (InterruptedException e) {
+//            int ignored = 0;
+//        }
 
         this.nextTickTime = Util.getMillis() + 10L;
         this.waitUntilNextTick();

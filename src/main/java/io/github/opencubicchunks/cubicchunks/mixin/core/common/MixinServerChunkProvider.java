@@ -89,30 +89,7 @@ public abstract class MixinServerChunkProvider implements IServerChunkProvider, 
 
     @Shadow @org.jetbrains.annotations.Nullable protected abstract ChunkHolder getVisibleChunkIfPresent(long pos);
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void onInit(ServerLevel serverLevel, LevelStorageSource.LevelStorageAccess levelStorageAccess, DataFixer dataFixer, StructureManager structureManager, Executor executor,
-                        ChunkGenerator chunkGenerator, int i, boolean bl, ChunkProgressListener chunkProgressListener, ChunkStatusUpdateListener chunkStatusUpdateListener,
-                        Supplier<DimensionDataStorage> supplier, CallbackInfo ci) {
-        ((IChunkManager) chunkMap).setServerChunkCache((ServerChunkCache) (Object) this);
-    }
-
-    @Override public ChunkHolder getChunkHolderForce(ChunkPos chunkPos, ChunkStatus requiredStatus) {
-        long pos = chunkPos.toLong();
-        ChunkHolder chunkHolder = this.getVisibleChunkIfPresent(pos);
-        int chunkLevel = 33 + ChunkStatus.getDistance(requiredStatus);
-        this.distanceManager.addTicket(TicketType.UNKNOWN, chunkPos, chunkLevel, chunkPos);
-        if (this.chunkAbsent(chunkHolder, chunkLevel)) {
-            ProfilerFiller profilerFiller = this.level.getProfiler();
-            profilerFiller.push("chunkLoad");
-            this.runChunkDistanceManagerUpdates();
-            chunkHolder = this.getVisibleChunkIfPresent(pos);
-            profilerFiller.pop();
-            if (this.chunkAbsent(chunkHolder, chunkLevel)) {
-                throw Util.pauseInIde(new IllegalStateException("No chunk holder after ticket has been added"));
-            }
-        }
-        return chunkHolder;
-    }
+    @Shadow abstract boolean runDistanceManagerUpdates();
 
     @Override
     public <T> void addCubeRegionTicket(TicketType<T> type, CubePos pos, int distance, T value) {
@@ -208,6 +185,29 @@ public abstract class MixinServerChunkProvider implements IServerChunkProvider, 
         ((ITicketManager) this.distanceManager).updateCubeForced(pos, add);
     }
 
+
+    @Override public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getColumnFutureForCube(CubePos cubepos, int chunkX, int chunkZ, ChunkStatus leastStatus,
+                                                                                                                    boolean create) {
+        ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
+        long l = chunkPos.toLong();
+        int i = 33 + ChunkStatus.getDistance(leastStatus);
+        ChunkHolder chunkHolder = this.getVisibleChunkIfPresent(l);
+        if (create) {
+            this.distanceManager.addTicket(CCTicketType.CCCOLUMN, chunkPos, i, cubepos);
+            if (this.chunkAbsent(chunkHolder, i)) {
+                ProfilerFiller profilerFiller = this.level.getProfiler();
+                profilerFiller.push("chunkLoad");
+                this.runDistanceManagerUpdates();
+                chunkHolder = this.getVisibleChunkIfPresent(l);
+                profilerFiller.pop();
+                if (this.chunkAbsent(chunkHolder, i)) {
+                    throw Util.pauseInIde(new IllegalStateException("No chunk holder after ticket has been added"));
+                }
+            }
+        }
+        return this.chunkAbsent(chunkHolder, i) ? ChunkHolder.UNLOADED_CHUNK_FUTURE : chunkHolder.getOrScheduleFuture(leastStatus, this.chunkMap);
+    }
+
     // func_217233_c, getChunkFutureMainThread
     private CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> getCubeFutureMainThread(int cubeX, int cubeY, int cubeZ,
                                                                                                          ChunkStatus requiredStatus, boolean load) {
@@ -265,17 +265,6 @@ public abstract class MixinServerChunkProvider implements IServerChunkProvider, 
         this.clearCubeCache();
     }
 
-    private boolean runChunkDistanceManagerUpdates() {
-        boolean flag = ((ITicketManager) this.distanceManager).runAllUpdatesForChunks(chunkMap);
-        boolean flag1 = ((ChunkManagerAccess) this.chunkMap).invokePromoteChunkMap();
-        if (!flag && !flag1) {
-            return false;
-        } else {
-            this.clearCubeCache();
-            return true;
-        }
-    }
-
     // func_217235_l, runDistanceManagerUpdates
     private boolean runCubeDistanceManagerUpdates() {
         boolean flag = this.distanceManager.runAllUpdates(this.chunkMap);
@@ -320,6 +309,12 @@ public abstract class MixinServerChunkProvider implements IServerChunkProvider, 
         }
     }
 
+    @Inject(method = "<init>", at = @At(value = "RETURN"))
+    private void setChunkManagerServerChunkCache(ServerLevel serverLevel, LevelStorageSource.LevelStorageAccess levelStorageAccess, DataFixer dataFixer, StructureManager structureManager,
+                                                 Executor executor, ChunkGenerator chunkGenerator, int i, boolean bl, ChunkProgressListener chunkProgressListener,
+                                                 ChunkStatusUpdateListener chunkStatusUpdateListener, Supplier<DimensionDataStorage> supplier, CallbackInfo ci) {
+        ((IChunkManager) this.chunkMap).setServerChunkCache((ServerChunkCache) (Object) this);
+    }
     /**
      * @author Barteks2x
      * @reason sections

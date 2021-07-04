@@ -132,6 +132,7 @@ minecraft {
             "-Dcubicchunks.debug.window=false",
             "-Dcubicchunks.debug.statusrenderer=false",
             "-Dcubicchunks.debug.biomes=false",
+            "-ea"
     ]
 
     runConfigs {

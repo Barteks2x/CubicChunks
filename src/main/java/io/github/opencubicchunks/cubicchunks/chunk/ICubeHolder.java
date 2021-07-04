@@ -34,10 +34,6 @@ public interface ICubeHolder {
         return cubeLevel < 33 ? ChunkStatus.FULL : CubeStatus.getStatus(cubeLevel - 33);
     }
 
-    void setChunkHolders(ChunkHolder[] chunkHolders);
-
-    ChunkHolder[] getChunkHolders();
-
     @Nullable
     BigCube getCubeIfComplete();
 

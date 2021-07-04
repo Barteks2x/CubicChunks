@@ -20,6 +20,7 @@ import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.IChunkManager;
 import io.github.opencubicchunks.cubicchunks.chunk.ICubeHolder;
 import io.github.opencubicchunks.cubicchunks.chunk.ImposterChunkPos;
+import io.github.opencubicchunks.cubicchunks.chunk.LightHeightmapGetter;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.BigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimer;
 import io.github.opencubicchunks.cubicchunks.chunk.cube.CubePrimerWrapper;
@@ -78,7 +79,6 @@ public abstract class MixinChunkHolder implements ICubeHolder {
     @Shadow private CompletableFuture<Void> pendingFullStateConfirmation;
     @Shadow @Final private LevelHeightAccessor levelHeightAccessor;
 
-    private ChunkHolder[] chunkHolders = null;
     @Shadow private boolean hasChangedSections;
 
     private CubePos cubePos; // set from ASM
@@ -311,39 +311,11 @@ public abstract class MixinChunkHolder implements ICubeHolder {
         }
     }
 
-    @Override
-    public void setChunkHolders(ChunkHolder[] chunkHolders) {
-        this.chunkHolders = chunkHolders;
-    }
-
-    @Override
-    public ChunkHolder[] getChunkHolders() {
-        return chunkHolders;
-    }
-
     // func_219276_a, getOrScheduleFuture
-    @Override public CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> getOrScheduleCubeFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
-        int i = targetStatus.getIndex();
-        CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> completableFuture = futures.get(i);
-        if (completableFuture != null) {
-            Either<IBigCube, ChunkHolder.ChunkLoadingFailure> either = completableFuture.getNow(null);
-            if (either == null || either.left().isPresent()) {
-                return completableFuture;
-            }
-        }
-
-        if (getStatus(this.ticketLevel).isOrAfter(targetStatus)) {
-            CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> completableFuture2 = ((IChunkManager) chunkStorage).scheduleCube((ChunkHolder) (Object) this,
-                targetStatus);
-            this.updateChunkToSave(completableFuture2, "schedule " + targetStatus);
-            this.futures.set(i, completableFuture2);
-            return completableFuture2;
-        } else {
-            return completableFuture == null ? UNLOADED_CUBE_FUTURE : completableFuture;
-        }
+    @Override public CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> getOrScheduleCubeFuture(ChunkStatus chunkStatus, ChunkMap chunkManager) {
+        return getOrScheduleFuture(chunkStatus, chunkManager);
     }
 
-    @Override
     public void addCubeStageListener(ChunkStatus status, BiConsumer<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>, Throwable> consumer, ChunkMap chunkManager) {
         CompletableFuture<Either<IBigCube, ChunkHolder.ChunkLoadingFailure>> future = getOrScheduleFuture(status, chunkManager);
 
@@ -385,6 +357,9 @@ public abstract class MixinChunkHolder implements ICubeHolder {
 
         ci.cancel();
 
+        int localX = blockPos.getX() & 0xF;
+        int localZ = blockPos.getZ() & 0xF;
+
         if (cubePos == null) {
             ChunkAccess chunk = getTickingChunk();
             if (chunk == null) {
@@ -406,6 +381,18 @@ public abstract class MixinChunkHolder implements ICubeHolder {
                     }
                     changedLocalBlocks[sectionIDX].add(SectionPos.sectionRelativePos(blockPos));
                 }
+            }
+            int topY = ((LightHeightmapGetter) chunk).getLightHeightmap().getFirstAvailable(localX, localZ) - 1;
+            // if the block being changed is new top block - heightmap probably was updated
+            // if block being changed is above new top block - heightmap was probably decreased
+            // TODO: replace heuristics with proper tracking
+            if (blockPos.getY() >= topY) {
+                // TODO: don't use heightmap type as "height" for address
+
+                if (this.changedLocalBlocks[sectionIDX] == null) {
+                    this.changedLocalBlocks[sectionIDX] = new ShortArraySet();
+                }
+                changedLocalBlocks[sectionIDX].add(SectionPos.sectionRelativePos(blockPos));
             }
             return;
         }
@@ -434,6 +421,7 @@ public abstract class MixinChunkHolder implements ICubeHolder {
             return;
         }
         ci.cancel();
+
 
         if (cubePos != null) {
             throw new IllegalStateException("Why is this getting called?");

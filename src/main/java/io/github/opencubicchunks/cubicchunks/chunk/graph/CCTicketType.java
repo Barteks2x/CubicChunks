@@ -12,6 +12,8 @@ public class CCTicketType {
     public static final TicketType<CubePos> CCLIGHT = create("light", Comparator.comparingLong(CubePos::asLong));
     public static final TicketType<CubePos> CCUNKNOWN = create("unknown", Comparator.comparingLong(CubePos::asLong), 1);
 
+    public static final TicketType<CubePos> CCCOLUMN = create("column", Comparator.comparingLong(CubePos::asLong));
+
 
     public static <T> TicketType<T> create(String nameIn, Comparator<T> comparator) {
         return TicketTypeAccess.createNew(nameIn, comparator, 0L);

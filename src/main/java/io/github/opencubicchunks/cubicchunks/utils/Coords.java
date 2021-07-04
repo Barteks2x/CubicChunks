@@ -32,6 +32,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 
 /**
  * A class that contains helper-methods for many CubicChunks related things.
@@ -375,6 +376,16 @@ public class Coords {
     public static SectionPos sectionPosByIndex(CubePos cubePos, int i) {
         return SectionPos.of(cubeToSection(cubePos.getX(), indexToX(i)), cubeToSection(cubePos.getY(), indexToY(i)), cubeToSection(cubePos.getZ(),
             indexToZ(i)));
+    }
+
+    /**
+     * @param cubePos The {@link CubePos}
+     * @param i The index of the {@link ChunkSection} inside the {@link CubePos}
+     *
+     * @return The {@link ChunkPos} of the column containing the {@link ChunkSection} at index i
+     */
+    public static ChunkPos chunkPosByIndex(CubePos cubePos, int i) {
+        return new ChunkPos(cubeToSection(cubePos.getX(), indexToX(i)), cubeToSection(cubePos.getZ(), indexToZ(i)));
     }
 
     public static int blockToCubeLocalSection(int x) {

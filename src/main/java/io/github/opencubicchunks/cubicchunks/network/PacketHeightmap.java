@@ -2,6 +2,9 @@ package io.github.opencubicchunks.cubicchunks.network;
 
 import java.util.Map;
 
+import io.github.opencubicchunks.cubicchunks.chunk.LightHeightmapGetter;
+import io.github.opencubicchunks.cubicchunks.chunk.heightmap.ClientLightSurfaceTracker;
+import io.github.opencubicchunks.cubicchunks.chunk.heightmap.LightSurfaceTrackerWrapper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -33,6 +36,8 @@ public class PacketHeightmap {
                 heightmaps.put(entry.getKey().getSerializationKey(), new LongArrayTag(entry.getValue().getRawData()));
             }
         }
+        LightSurfaceTrackerWrapper lightHeightmap = ((LightHeightmapGetter) chunk).getServerLightHeightmap();
+        heightmaps.put("light", new LongArrayTag(lightHeightmap.getRawData()));
         return new PacketHeightmap(chunk.getPos(), heightmaps);
     }
 
@@ -56,6 +61,12 @@ public class PacketHeightmap {
                 }
                 long[] longArray = packet.heightmaps.getLongArray(value.getSerializationKey());
                 chunk.setHeightmap(value, longArray);
+            }
+            if (packet.heightmaps.contains("light")) {
+                // TODO is this safe on dedicated server?
+                long[] data = packet.heightmaps.getLongArray("light");
+                ClientLightSurfaceTracker heightmap = ((LightHeightmapGetter) chunk).getClientLightHeightmap();
+                heightmap.setRawData(data, chunk);
             }
         }
     }

@@ -30,6 +30,7 @@ public interface IChunkManager {
     @Nullable
     ChunkHolder updateCubeScheduling(long cubePosIn, int newLevel, @Nullable ChunkHolder holder, int oldLevel);
 
+    void setServerChunkCache(ServerChunkCache cache);
     LongSet getCubesToDrop();
 
     @Nullable
@@ -121,6 +122,4 @@ public interface IChunkManager {
     void releaseLightTicket(CubePos cubePos);
 
     boolean noPlayersCloseForSpawning(CubePos cubePos);
-
-    void setServerChunkCache(ServerChunkCache cache);
 }

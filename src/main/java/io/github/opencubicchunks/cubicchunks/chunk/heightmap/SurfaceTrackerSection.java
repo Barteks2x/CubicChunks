@@ -22,23 +22,23 @@ public class SurfaceTrackerSection {
     /** Number of children nodes */
     public static final int NODE_COUNT = 1 << NODE_COUNT_BITS;
 
+    // Use width of 16 to match columns.
+    public static final int WIDTH_BLOCKS = 16;
+
     private static final Heightmap.Types[] HEIGHTMAP_TYPES = Heightmap.Types.values();
 
     /** Number of bits needed to represent height (excluding null) at scale zero (i.e. log2(scale0 height)) */
     private static final int BASE_SIZE_BITS = IBigCube.SIZE_BITS;
 
-    // Use width of 16 to match columns.
-    private static final int WIDTH_BLOCKS = 16;
-
-    private final BitStorage heights;
-    private final long[] dirtyPositions; // bitset has 100% memory usage overhead due to pointers and object headers
-    private SurfaceTrackerSection parent;
-    private Object cubeOrNodes;
+    protected final BitStorage heights;
+    protected final long[] dirtyPositions; // bitset has 100% memory usage overhead due to pointers and object headers
+    protected SurfaceTrackerSection parent;
+    protected Object cubeOrNodes;
     /**
      * Position of this section, within all sections of this size e.g. with 64-block sections, y=0-63 would be section 0, y=64-127 would be section 1, etc.
      */
-    private final int scaledY;
-    private final byte scale;
+    protected final int scaledY;
+    protected final byte scale;
     private final byte heightmapType;
 
     public SurfaceTrackerSection(Heightmap.Types types) {
@@ -61,7 +61,10 @@ public class SurfaceTrackerSection {
         this.heightmapType = (byte) types.ordinal();
     }
 
-    /** Get the height for a given position. Recomputes the height if the column is marked dirty in this section. */
+    /**
+     * Get the height for a given position. Recomputes the height if the column is marked dirty in this section.
+     * x and z are global coordinates.
+     */
     public int getHeight(int x, int z) {
         int idx = index(x, z);
         if (!isDirty(idx)) {
@@ -101,7 +104,7 @@ public class SurfaceTrackerSection {
         }
     }
 
-    private void clearDirty(int idx) {
+    protected void clearDirty(int idx) {
         dirtyPositions[idx >> 6] &= ~(1L << idx);
     }
 
@@ -109,7 +112,7 @@ public class SurfaceTrackerSection {
         dirtyPositions[idx >> 6] |= 1L << idx;
     }
 
-    private boolean isDirty(int idx) {
+    protected boolean isDirty(int idx) {
         return (dirtyPositions[idx >> 6] & (1L << idx)) != 0;
     }
 
@@ -241,7 +244,7 @@ public class SurfaceTrackerSection {
     }
 
     @Nullable
-    private SurfaceTrackerSection loadNode(int newScaledY, int sectionScale, IBigCube newCube, boolean create) {
+    protected SurfaceTrackerSection loadNode(int newScaledY, int sectionScale, IBigCube newCube, boolean create) {
         // TODO: loading from disk
         if (!create) {
             return null;
@@ -252,7 +255,8 @@ public class SurfaceTrackerSection {
         return new SurfaceTrackerSection(sectionScale, newScaledY, this, HEIGHTMAP_TYPES[this.heightmapType]);
     }
 
-    private int index(int x, int z) {
+    /** Get position x/z index within a column, from global/local pos */
+    protected int index(int x, int z) {
         return (z & 0xF) * WIDTH_BLOCKS + (x & 0xF);
     }
 

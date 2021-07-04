@@ -49,6 +49,10 @@ public class CubePos extends Vec3i {
         return i;
     }
 
+    public static long asChunkPosLong(long cubePosIn, int localX, int localZ) {
+        return ChunkPos.asLong(Coords.cubeToSection(CubePos.extractX(cubePosIn), localX), Coords.cubeToSection(CubePos.extractZ(cubePosIn), localZ));
+    }
+
     public ChunkPos asChunkPos() {
         return new ChunkPos(cubeToSection(this.getX(), 0), cubeToSection(this.getZ(), 0));
     }

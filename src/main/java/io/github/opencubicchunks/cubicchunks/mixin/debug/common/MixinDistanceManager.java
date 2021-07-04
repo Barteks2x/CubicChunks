@@ -1,5 +1,6 @@
 package io.github.opencubicchunks.cubicchunks.mixin.debug.common;
 
+import io.github.opencubicchunks.cubicchunks.chunk.graph.CCTicketType;
 import net.minecraft.server.level.DistanceManager;
 import net.minecraft.server.level.Ticket;
 import net.minecraft.server.level.TicketType;
@@ -17,7 +18,7 @@ public class MixinDistanceManager {
         if (!DEBUG_LOAD_ORDER_ENABLED) {
             return;
         }
-        if (ticket.getType() == TicketType.PLAYER) {
+        if (ticket.getType() == TicketType.PLAYER || ticket.getType() == CCTicketType.CCPLAYER) {
             ci.cancel();
         }
     }

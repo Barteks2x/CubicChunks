@@ -20,7 +20,6 @@ import io.github.opencubicchunks.cubicchunks.chunk.ticket.PlayerCubeTicketTracke
 import io.github.opencubicchunks.cubicchunks.chunk.ticket.PlayerCubeTracker;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
 import io.github.opencubicchunks.cubicchunks.mixin.access.common.ChunkHolderAccess;
-import io.github.opencubicchunks.cubicchunks.mixin.access.common.ChunkManagerAccess;
 import io.github.opencubicchunks.cubicchunks.mixin.access.common.TicketAccess;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
 import io.github.opencubicchunks.cubicchunks.utils.MathUtil;
@@ -34,14 +33,12 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
-import net.minecraft.server.level.ChunkTaskPriorityQueueSorter;
 import net.minecraft.server.level.DistanceManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.Ticket;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.util.SortedArraySet;
 import net.minecraft.util.thread.ProcessorHandle;
-import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -52,6 +49,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(DistanceManager.class)
 public abstract class MixinTicketManager implements ITicketManager, IVerticalView {
+
+    @Final @Shadow Executor mainThreadExecutor;
+    @Shadow private long ticketTickCounter;
 
     private final Long2ObjectOpenHashMap<SortedArraySet<Ticket<?>>> cubeTickets = new Long2ObjectOpenHashMap<>();
     private final Long2ObjectMap<ObjectSet<ServerPlayer>> playersPerCube = new Long2ObjectOpenHashMap<>();
@@ -68,182 +68,64 @@ public abstract class MixinTicketManager implements ITicketManager, IVerticalVie
 
     private boolean isCubic;
 
-    @Shadow @Final private DistanceManager.FixedPlayerDistanceChunkTracker naturalSpawnChunkCounter;
-
-    @Shadow @Final private DistanceManager.PlayerTicketTracker playerTicketManager;
-
-    @Shadow @Final private DistanceManager.ChunkTicketTracker ticketTracker;
-
-    @Shadow @Final private Set<ChunkHolder> chunksToUpdateFutures;
-
-    @Shadow @Final private LongSet ticketsToRelease;
-
-    @Shadow @Final private ProcessorHandle<ChunkTaskPriorityQueueSorter.Release> ticketThrottlerReleaser;
-
-    @Final @Shadow private Executor mainThreadExecutor;
-
-    @Shadow private long ticketTickCounter;
-
     @Shadow private static int getTicketLevelAt(SortedArraySet<Ticket<?>> p_229844_0_) {
         throw new Error("Mixin did not apply correctly");
     }
 
-    @Shadow protected abstract SortedArraySet<Ticket<?>> getTickets(long position);
+    @Shadow abstract void addTicket(long position, Ticket<?> ticket);
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    public void init(Executor executor, Executor executor2, CallbackInfo ci) {
-        ProcessorHandle<Runnable> itaskexecutor = ProcessorHandle.of("player ticket throttler", executor2::execute);
-        CubeTaskPriorityQueueSorter throttler = new CubeTaskPriorityQueueSorter(ImmutableList.of(itaskexecutor), executor, 4);
+    public void init(Executor backgroundExecutor, Executor mainThreadExecutor_, CallbackInfo ci) {
+        ProcessorHandle<Runnable> mainThreadHandle = ProcessorHandle.of("player ticket throttler", mainThreadExecutor_::execute);
+        CubeTaskPriorityQueueSorter throttler = new CubeTaskPriorityQueueSorter(ImmutableList.of(mainThreadHandle), backgroundExecutor, 4);
         this.cubeTicketThrottler = throttler;
-        this.cubeTicketThrottlerInput = throttler.createExecutor(itaskexecutor, true);
-        this.cubeTicketThrottlerReleaser = throttler.createSorterExecutor(itaskexecutor);
+        this.cubeTicketThrottlerInput = throttler.createExecutor(mainThreadHandle, true);
+        this.cubeTicketThrottlerReleaser = throttler.createSorterExecutor(mainThreadHandle);
     }
 
     @Override
     public void addCubeTicket(long cubePosIn, Ticket<?> ticketIn) {
-        SortedArraySet<Ticket<?>> sortedarrayset = this.getCubeTickets(cubePosIn);
-        int i = getTicketLevelAt(sortedarrayset);
-        Ticket<?> ticket = sortedarrayset.addOrGet(ticketIn);
-        ((TicketAccess) ticket).invokeSetCreatedTick(this.ticketTickCounter);
-        if (ticketIn.getTicketLevel() < i) {
+        SortedArraySet<Ticket<?>> ticketsForCube = this.getCubeTickets(cubePosIn);
+        int existingTicketLevel = getTicketLevelAt(ticketsForCube);
+
+        // force a ticket on the cube's columns
+        CubePos cubePos = CubePos.from(cubePosIn);
+        for (int localX = 0; localX < IBigCube.DIAMETER_IN_SECTIONS; localX++) {
+            for (int localZ = 0; localZ < IBigCube.DIAMETER_IN_SECTIONS; localZ++) {
+                //do not need to handle region tickets due to the additional CCColumn tickets added in cube generation stages
+                addTicket(CubePos.asChunkPosLong(cubePosIn, localX, localZ), TicketAccess.createNew(CCTicketType.CCCOLUMN, ticketIn.getTicketLevel(), cubePos));
+            }
+        }
+
+        Ticket<?> cubeTicket = ticketsForCube.addOrGet(ticketIn);
+        ((TicketAccess) cubeTicket).invokeSetCreatedTick(this.ticketTickCounter);
+        if (ticketIn.getTicketLevel() < existingTicketLevel) {
             this.cubeTicketTracker.updateSourceLevel(cubePosIn, ticketIn.getTicketLevel(), true);
         }
     }
 
     @Override
-    public void removeCubeTicket(long cubePosIn, Ticket<?> ticketIn) {
-        SortedArraySet<Ticket<?>> sortedarrayset = this.getCubeTickets(cubePosIn);
-        sortedarrayset.remove(ticketIn);
-
-        if (sortedarrayset.isEmpty()) {
-            this.cubeTickets.remove(cubePosIn);
-        }
-
-        this.cubeTicketTracker.updateSourceLevel(cubePosIn, getTicketLevelAt(sortedarrayset), false);
-        // TODO: release chunk tickets when releasing cube tickets
-    }
-
-    private SortedArraySet<Ticket<?>> getCubeTickets(long cubePos) {
-        return this.cubeTickets.computeIfAbsent(cubePos, (p_229851_0_) -> SortedArraySet.create(4));
-    }
-
-    //BEGIN INJECT
-
-    @Override public boolean runAllUpdatesForChunks(ChunkMap chunkMap) {
-        this.naturalSpawnChunkCounter.runAllUpdates();
-        this.playerTicketManager.runAllUpdates();
-        int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
-        boolean bl = i != 0;
-
-        if (!this.chunksToUpdateFutures.isEmpty()) {
-            this.chunksToUpdateFutures.forEach((chunkHolder) -> ((ChunkHolderAccess) chunkHolder).invokeUpdateFutures(chunkMap, this.mainThreadExecutor));
-            this.chunksToUpdateFutures.clear();
-            return true;
-        } else {
-            if (!this.ticketsToRelease.isEmpty()) {
-                LongIterator longIterator = this.ticketsToRelease.iterator();
-
-                while (longIterator.hasNext()) {
-                    long l = longIterator.nextLong();
-                    if (this.getTickets(l).stream().anyMatch((ticket) -> ticket.getType() == TicketType.PLAYER)) {
-                        ChunkHolder chunkHolder = ((ChunkManagerAccess) chunkMap).invokeGetUpdatingChunkIfPresent(l);
-                        if (chunkHolder == null) {
-                            throw new IllegalStateException();
-                        }
-
-                        CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> completableFuture = chunkHolder.getEntityTickingChunkFuture();
-                        completableFuture.thenAccept((either) -> {
-                            this.mainThreadExecutor.execute(() -> {
-                                this.ticketThrottlerReleaser.tell(ChunkTaskPriorityQueueSorter.release(() -> {
-                                }, l, false));
-                            });
-                        });
-                    }
-                }
-
-                this.ticketsToRelease.clear();
-            }
-
-            return bl;
-        }
-    }
-
-    @Inject(method = "runAllUpdates", at = @At("RETURN"), cancellable = true)
-    public void processUpdates(ChunkMap chunkManager, CallbackInfoReturnable<Boolean> callbackInfoReturnable) {
-        if (!isCubic) {
-            return;
-        }
-
-        // Minecraft.getInstance().getIntegratedServer().getProfiler().startSection("cubeTrackerUpdates");
-        this.naturalSpawnCubeCounter.processAllUpdates();
-        // Minecraft.getInstance().getIntegratedServer().getProfiler().endStartSection("cubeTicketTrackerUpdates");
-        this.playerCubeTicketTracker.processAllUpdates();
-        // Minecraft.getInstance().getIntegratedServer().getProfiler().endStartSection("cubeTicketTracker");
-        int i = Integer.MAX_VALUE - this.cubeTicketTracker.update(Integer.MAX_VALUE);
-        // Minecraft.getInstance().getIntegratedServer().getProfiler().endStartSection("cubeHolderTick");
-        boolean flag = i != 0;
-        if (!this.cubesToUpdateFutures.isEmpty()) {
-            this.cubesToUpdateFutures.forEach((cubeHolder) -> ((ChunkHolderAccess) cubeHolder).invokeUpdateFutures(chunkManager, this.mainThreadExecutor));
-            this.cubesToUpdateFutures.clear();
-            callbackInfoReturnable.setReturnValue(true);
-            //Minecraft.getInstance().getIntegratedServer().getProfiler().endSection();// cubeHolderTick
-            return;
-        } else {
-            if (!this.cubeTicketsToRelease.isEmpty()) {
-                LongIterator longiterator = this.cubeTicketsToRelease.iterator();
-
-                while (longiterator.hasNext()) {
-                    long j = longiterator.nextLong();
-                    if (this.getCubeTickets(j).stream().anyMatch((p_219369_0_) -> p_219369_0_.getType() == CCTicketType.CCPLAYER)) {
-                        ChunkHolder chunkholder = ((IChunkManager) chunkManager).getCubeHolder(j);
-                        if (chunkholder == null) {
-                            throw new IllegalStateException();
-                        }
-
-                        CompletableFuture<Either<BigCube, ChunkHolder.ChunkLoadingFailure>> sectionEntityTickingFuture =
-                            ((ICubeHolder) chunkholder).getCubeEntityTickingFuture();
-                        sectionEntityTickingFuture.thenAccept((p_219363_3_) -> this.mainThreadExecutor.execute(() -> {
-                            this.cubeTicketThrottlerReleaser.tell(CubeTaskPriorityQueueSorter.createSorterMsg(() -> {
-                            }, j, false));
-                        }));
-                    }
-                }
-                this.cubeTicketsToRelease.clear();
-            }
-            callbackInfoReturnable.setReturnValue(flag | callbackInfoReturnable.getReturnValueZ());
-        }
-        //Minecraft.getInstance().getIntegratedServer().getProfiler().endSection();// cubeHolderTick
-    }
-
-    //BEGIN OVERWRITE
-
-    /**
-     * @author NotStirred
-     * @reason CC must also update it's tracker&tickets
-     */
-    @Inject(method = "purgeStaleTickets", at = @At("RETURN"))
-    protected void purgeStaleCubeTickets(CallbackInfo ci) {
-
-        if (!isCubic) {
-            return;
-        }
-
-        ObjectIterator<Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>>> objectiterator = this.cubeTickets.long2ObjectEntrySet().fastIterator();
-        while (objectiterator.hasNext()) {
-            Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>> entry = objectiterator.next();
-            if (entry.getValue().removeIf((ticket) -> ((TicketAccess) ticket).invokeTimedOut(this.ticketTickCounter))) {
-                this.cubeTicketTracker.updateSourceLevel(entry.getLongKey(), getTicketLevelAt(entry.getValue()), false);
-            }
-            if (entry.getValue().isEmpty()) {
-                objectiterator.remove();
-            }
-        }
-    }
-
-    //BEGIN OVERRIDES
-    @Override
     public <T> void addCubeTicket(TicketType<T> type, CubePos pos, int level, T value) {
         this.addCubeTicket(pos.asLong(), TicketAccess.createNew(type, level, value));
+    }
+
+    @Override
+    public <T> void addCubeRegionTicket(TicketType<T> type, CubePos pos, int distance, T value) {
+        this.addCubeTicket(pos.asLong(), TicketAccess.createNew(type, 33 - distance, value));
+    }
+
+    @Override
+    public void removeCubeTicket(long cubePosLong, Ticket<?> ticketIn) {
+        SortedArraySet<Ticket<?>> ticketsForCube = this.getCubeTickets(cubePosLong);
+        ticketsForCube.remove(ticketIn);
+
+        if (ticketsForCube.isEmpty()) {
+            this.cubeTickets.remove(cubePosLong);
+        }
+
+        this.cubeTicketTracker.updateSourceLevel(cubePosLong, getTicketLevelAt(ticketsForCube), false);
+        //We don't remove CCColumn tickets here, as chunks must always be loaded if a cube is loaded.
+        //Chunk tickets are instead removed once a cube has been unloaded
     }
 
     @Override
@@ -253,14 +135,74 @@ public abstract class MixinTicketManager implements ITicketManager, IVerticalVie
     }
 
     @Override
-    public <T> void addCubeRegionTicket(TicketType<T> type, CubePos pos, int distance, T value) {
-        this.addCubeTicket(pos.asLong(), TicketAccess.createNew(type, 33 - distance, value));
-    }
-
-    @Override
     public <T> void removeCubeRegionTicket(TicketType<T> type, CubePos pos, int distance, T value) {
         Ticket<T> ticket = TicketAccess.createNew(type, 33 - distance, value);
         this.removeCubeTicket(pos.asLong(), ticket);
+    }
+
+    private SortedArraySet<Ticket<?>> getCubeTickets(long cubePosLong) {
+        return this.cubeTickets.computeIfAbsent(cubePosLong, (pos) -> SortedArraySet.create(4));
+    }
+
+    @Inject(method = "runAllUpdates", at = @At("RETURN"), cancellable = true)
+    public void processUpdates(ChunkMap chunkManager, CallbackInfoReturnable<Boolean> callbackInfoReturnable) {
+        if (!isCubic) {
+            return;
+        }
+
+        this.naturalSpawnCubeCounter.processAllUpdates();
+        this.playerCubeTicketTracker.processAllUpdates();
+        int updatesCompleted = Integer.MAX_VALUE - this.cubeTicketTracker.update(Integer.MAX_VALUE);
+        if (!this.cubesToUpdateFutures.isEmpty()) {
+            this.cubesToUpdateFutures.forEach((cubeHolder) -> ((ChunkHolderAccess) cubeHolder).invokeUpdateFutures(chunkManager, this.mainThreadExecutor));
+            this.cubesToUpdateFutures.clear();
+            callbackInfoReturnable.setReturnValue(true);
+        } else {
+            if (!this.cubeTicketsToRelease.isEmpty()) {
+                LongIterator ticketsToRelease = this.cubeTicketsToRelease.iterator();
+
+                while (ticketsToRelease.hasNext()) {
+                    long cubePosToRelease = ticketsToRelease.nextLong();
+                    if (this.getCubeTickets(cubePosToRelease).stream().anyMatch((cubeTicket) -> cubeTicket.getType() == CCTicketType.CCPLAYER)) {
+                        ChunkHolder cubeHolder = ((IChunkManager) chunkManager).getCubeHolder(cubePosToRelease);
+                        if (cubeHolder == null) {
+                            throw new IllegalStateException();
+                        }
+
+                        CompletableFuture<Either<BigCube, ChunkHolder.ChunkLoadingFailure>> cubeEntityTickingFuture =
+                            ((ICubeHolder) cubeHolder).getCubeEntityTickingFuture();
+                        cubeEntityTickingFuture.thenAccept((cubeEither) -> this.mainThreadExecutor.execute(() ->
+                            this.cubeTicketThrottlerReleaser.tell(CubeTaskPriorityQueueSorter.createSorterMsg(() -> {
+                        }, cubePosToRelease, false))));
+                    }
+                }
+                this.cubeTicketsToRelease.clear();
+            }
+            boolean anyUpdatesCompleted = updatesCompleted != 0;
+            callbackInfoReturnable.setReturnValue(anyUpdatesCompleted | callbackInfoReturnable.getReturnValueZ());
+        }
+    }
+
+    /**
+     * @author NotStirred
+     * @reason CC must also update it's tracker&tickets
+     */
+    @Inject(method = "purgeStaleTickets", at = @At("RETURN"))
+    protected void purgeStaleCubeTickets(CallbackInfo ci) {
+        if (!isCubic) {
+            return;
+        }
+
+        ObjectIterator<Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>>> cubeTicketsToPurge = this.cubeTickets.long2ObjectEntrySet().fastIterator();
+        while (cubeTicketsToPurge.hasNext()) {
+            Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>> cubeTicketEntry = cubeTicketsToPurge.next();
+            if (cubeTicketEntry.getValue().removeIf((ticket) -> ((TicketAccess) ticket).invokeTimedOut(this.ticketTickCounter))) {
+                this.cubeTicketTracker.updateSourceLevel(cubeTicketEntry.getLongKey(), getTicketLevelAt(cubeTicketEntry.getValue()), false);
+            }
+            if (cubeTicketEntry.getValue().isEmpty()) {
+                cubeTicketsToPurge.remove();
+            }
+        }
     }
 
     // updateChunkForced
@@ -276,21 +218,21 @@ public abstract class MixinTicketManager implements ITicketManager, IVerticalVie
 
     @Override
     public void addCubePlayer(CubePos cubePos, ServerPlayer player) {
-        long i = cubePos.asLong();
-        this.playersPerCube.computeIfAbsent(i, (x) -> new ObjectOpenHashSet<>()).add(player);
-        this.naturalSpawnCubeCounter.updateSourceLevel(i, 0, true);
-        this.playerCubeTicketTracker.updateSourceLevel(i, 0, true);
+        long cubePosLong = cubePos.asLong();
+        this.playersPerCube.computeIfAbsent(cubePosLong, (pos) -> new ObjectOpenHashSet<>()).add(player);
+        this.naturalSpawnCubeCounter.updateSourceLevel(cubePosLong, 0, true);
+        this.playerCubeTicketTracker.updateSourceLevel(cubePosLong, 0, true);
     }
 
     @Override
-    public void removeCubePlayer(CubePos cubePosIn, ServerPlayer player) {
-        long i = cubePosIn.asLong();
-        ObjectSet<ServerPlayer> objectset = this.playersPerCube.get(i);
-        objectset.remove(player);
-        if (objectset.isEmpty()) {
-            this.playersPerCube.remove(i);
-            this.naturalSpawnCubeCounter.updateSourceLevel(i, Integer.MAX_VALUE, false);
-            this.playerCubeTicketTracker.updateSourceLevel(i, Integer.MAX_VALUE, false);
+    public void removeCubePlayer(CubePos cubePos, ServerPlayer player) {
+        long cubePosLong = cubePos.asLong();
+        ObjectSet<ServerPlayer> playersInCube = this.playersPerCube.get(cubePosLong);
+        playersInCube.remove(player);
+        if (playersInCube.isEmpty()) {
+            this.playersPerCube.remove(cubePosLong);
+            this.naturalSpawnCubeCounter.updateSourceLevel(cubePosLong, Integer.MAX_VALUE, false);
+            this.playerCubeTicketTracker.updateSourceLevel(cubePosLong, Integer.MAX_VALUE, false);
         }
     }
 

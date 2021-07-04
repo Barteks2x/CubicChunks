@@ -10,38 +10,38 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public class ClientSurfaceTracker extends Heightmap {
 
-    private final Predicate<BlockState> isOpaque;
+    protected final Predicate<BlockState> isOpaque;
 
     public ClientSurfaceTracker(ChunkAccess chunkAccess, Types types) {
         super(chunkAccess, types);
         this.isOpaque = ((HeightmapAccess) this).getIsOpaque();
     }
 
-    @Override public boolean update(int x, int y, int z, BlockState blockState) {
-        int previous = getFirstAvailable(x, z);
-        if (y <= previous - 2) {
+    @Override public boolean update(int columnLocalX, int globalY, int columnLocalZ, BlockState blockState) {
+        int previous = getFirstAvailable(columnLocalX, columnLocalZ);
+        if (globalY <= previous - 2) {
             return false;
         }
         if (this.isOpaque.test(blockState)) {
-            if (y >= previous) {
-                ((HeightmapAccess) this).invokeSetHeight(x, z, y + 1);
+            if (globalY >= previous) {
+                ((HeightmapAccess) this).invokeSetHeight(columnLocalX, columnLocalZ, globalY + 1);
                 return true;
             }
             return true;
         }
-        if (previous - 1 == y) {
+        if (previous - 1 == globalY) {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
             ChunkAccess chunk = ((HeightmapAccess) this).getChunk();
             int currentY;
-            for (currentY = y - 1; currentY >= y - 64; --currentY) {
-                pos.set(x, currentY, z);
+            for (currentY = globalY - 1; currentY >= globalY - 64; --currentY) {
+                pos.set(columnLocalX, currentY, columnLocalZ);
                 if (this.isOpaque.test(chunk.getBlockState(pos))) {
-                    ((HeightmapAccess) this).invokeSetHeight(x, z, currentY + 1);
+                    ((HeightmapAccess) this).invokeSetHeight(columnLocalX, columnLocalZ, currentY + 1);
                     return true;
                 }
             }
-            ((HeightmapAccess) this).invokeSetHeight(x, z, currentY);
+            ((HeightmapAccess) this).invokeSetHeight(columnLocalX, columnLocalZ, currentY);
             return true;
         }
         return false;

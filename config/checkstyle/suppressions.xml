@@ -21,7 +21,7 @@
     <!-- we are not fixing setBlockState -->
     <suppress checks="CyclomaticComplexity" files="BigCube.java|CubePrimer.java"/>
     <!-- TODO: These probably need refactoring -->
-    <suppress checks="CyclomaticComplexity" files="CubicWorldLoadScreen.java|CubeSerializer.java|DebugVisualization.java"/>
+    <suppress checks="CyclomaticComplexity" files="CubicWorldLoadScreen.java|CubeSerializer.java|DebugVisualization.java|LightSurfaceTrackerSection.java"/>
     <!-- TODO: DebugVulkan doesn't work yet anyway, and this requires some refactoring -->
     <suppress checks="NPathComplexity" files="DebugVulkan.java"/>
     <!-- Mixins don't count for now until ASM is done -->

@@ -68,10 +68,10 @@ public abstract class MixinMinecraftServer {
         int chunkDiameter = Coords.cubeToSection(radius, 0) * 2 + 1;
         int d = radius * 2 + 1;
         ((IServerChunkProvider) serverchunkprovider).addCubeRegionTicket(TicketType.START, spawnPosCube, radius + 1, Unit.INSTANCE);
-        serverchunkprovider.addRegionTicket(TicketType.START, spawnPosCube.asChunkPos(), Coords.cubeToSection(radius + 1, 0), Unit.INSTANCE);
+//        serverchunkprovider.addRegionTicket(TicketType.START, spawnPosCube.asChunkPos(), Coords.cubeToSection(radius + 1, 0), Unit.INSTANCE);
 
-        while (this.isRunning() && (serverchunkprovider.getTickingGenerated() < chunkDiameter * chunkDiameter
-            || ((IServerChunkProvider) serverchunkprovider).getTickingGeneratedCubes() < d * d * d)) {
+        while (this.isRunning() && (/*serverchunkprovider.getTickingGenerated() < chunkDiameter * chunkDiameter
+            ||*/ ((IServerChunkProvider) serverchunkprovider).getTickingGeneratedCubes() < d * d * d)) {
             // from CC
             this.nextTickTime = Util.getMillis() + 10L;
             this.waitUntilNextTick();
