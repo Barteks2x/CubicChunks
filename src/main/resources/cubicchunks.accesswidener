@@ -10,5 +10,6 @@ accessible class net/minecraft/server/level/ThreadedLevelLightEngine$TaskType
 accessible class net/minecraft/world/level/levelgen/VerticalAnchor$BelowTop
 accessible class net/minecraft/world/level/levelgen/VerticalAnchor$AboveBottom
 accessible class net/minecraft/world/level/levelgen/VerticalAnchor$Absolute
+accessible class net/minecraft/client/Minecraft$ExperimentalDialogType
 extendable class net/minecraft/server/level/Ticket
 accessible method net/minecraft/server/level/ChunkMap$DistanceManager <init> (Lnet/minecraft/server/level/ChunkMap;Ljava/util/concurrent/Executor;Ljava/util/concurrent/Executor;)V

@@ -9,6 +9,7 @@
     },
     "mixins": [
         "common.BiomeContainerAccess",
+        "common.BlockPosAccess",
         "common.ChunkHolderAccess",
         "common.ChunkManagerAccess",
         "common.ChunkSectionAccess",

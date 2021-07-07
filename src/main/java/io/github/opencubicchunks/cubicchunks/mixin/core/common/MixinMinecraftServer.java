@@ -1,27 +1,42 @@
 package io.github.opencubicchunks.cubicchunks.mixin.core.common;
 
+import java.net.Proxy;
 import java.util.Map;
 
+import com.mojang.authlib.GameProfileRepository;
+import com.mojang.authlib.minecraft.MinecraftSessionService;
+import com.mojang.datafixers.DataFixer;
 import io.github.opencubicchunks.cubicchunks.chunk.IBigCube;
 import io.github.opencubicchunks.cubicchunks.chunk.ICubeStatusListener;
 import io.github.opencubicchunks.cubicchunks.chunk.util.CubePos;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.BlockPosAccess;
+import io.github.opencubicchunks.cubicchunks.server.CCServerSavedData;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
 import io.github.opencubicchunks.cubicchunks.server.IServerChunkProvider;
 import io.github.opencubicchunks.cubicchunks.utils.Coords;
+import io.github.opencubicchunks.cubicchunks.utils.MathUtil;
 import io.github.opencubicchunks.cubicchunks.world.ForcedCubesSaveData;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.ServerResources;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.server.level.progress.ChunkProgressListener;
+import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
+import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.players.GameProfileCache;
 import net.minecraft.util.Unit;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ForcedChunksSavedData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.level.storage.WorldData;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -40,6 +55,21 @@ public abstract class MixinMinecraftServer {
     @Shadow protected abstract void waitUntilNextTick();
     @Shadow public abstract ServerLevel overworld();
     @Shadow public abstract boolean isRunning();
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void throwIfBlockPosMismatch(Thread thread, RegistryAccess.RegistryHolder registryHolder, LevelStorageSource.LevelStorageAccess levelStorageAccess, WorldData worldData,
+                                         PackRepository packRepository, Proxy proxy, DataFixer dataFixer, ServerResources serverResources, MinecraftSessionService minecraftSessionService,
+                                         GameProfileRepository gameProfileRepository, GameProfileCache gameProfileCache, ChunkProgressListenerFactory chunkProgressListenerFactory,
+                                         CallbackInfo ci) {
+        CCServerSavedData ccServerSavedData = (CCServerSavedData) worldData;
+        if (ccServerSavedData.blockPosLongNoMatch()) {
+            throw
+                new IllegalStateException(String.format("Could not start the server because this server's ±XZ size does not match the XZ size set in the config." +
+                        "\nServer's XZ size: %s, Y size: %s\nConfig's XZ size: %s, Y size: %s",
+                    (MathUtil.unpackXZSize(ccServerSavedData.getServerPackedXZ()) * 2), MathUtil.unpackYSize(ccServerSavedData.getServerPackedXZ()),
+                    MathUtil.unpackXZSize(BlockPosAccess.getPackedXLength()), DimensionType.Y_SIZE));
+        }
+    }
 
     /**
      * @author NotStirred

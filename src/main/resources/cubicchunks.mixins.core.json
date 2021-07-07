@@ -67,6 +67,7 @@
         "common.world.MixinFuzzyOffsetConstantColumnBiomeZoomer",
         "common.world.MixinLevelHeightAccessor",
         "common.world.MixinNaturalSpawner",
+        "common.world.MixinPrimaryLevelData",
         "common.world.MixinServerTickList",
         "common.world.MixinServerWorld",
         "common.world.MixinSpawnLocationHelper",

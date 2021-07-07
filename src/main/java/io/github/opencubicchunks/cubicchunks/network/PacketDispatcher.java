@@ -51,20 +51,28 @@ public class PacketDispatcher {
             PacketHeightmapChanges::new, PacketHeightmapChanges.Handler::handle);
         registerMessage("levelinfo", PacketCCLevelInfo.class, PacketCCLevelInfo::encode,
             PacketCCLevelInfo::new, PacketCCLevelInfo.Handler::handle);
+        registerMessage("packetblockposlongincorrect", PacketBlockPosLongIncorrect.class, PacketBlockPosLongIncorrect::encode,
+            PacketBlockPosLongIncorrect::new, PacketBlockPosLongIncorrect.Handler::handle, true);
 //                CHANNEL.registerMessage("init", PacketCubicWorldInit.class, PacketCubicWorldInit::encode,
 //                        PacketCubicWorldInit::new, PacketCubicWorldInit::handle));
+    }
+    private static <T> void registerMessage(String id, Class<T> clazz,
+                                            BiConsumer<T, FriendlyByteBuf> encode,
+                                            Function<FriendlyByteBuf, T> decode,
+                                            BiConsumer<T, Level> handler) {
+        registerMessage(id, clazz, encode, decode, handler, false);
     }
 
     private static <T> void registerMessage(String id, Class<T> clazz,
                                             BiConsumer<T, FriendlyByteBuf> encode,
                                             Function<FriendlyByteBuf, T> decode,
-                                            BiConsumer<T, Level> handler) {
+                                            BiConsumer<T, Level> handler, boolean handleNullLevel) {
         ENCODERS.put(clazz, encode);
         PACKET_IDS.put(clazz, new ResourceLocation(PACKET_LOCATION, id));
 
 
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            ClientProxy.registerClientReceiver(id, decode, handler);
+            ClientProxy.registerClientReceiver(id, decode, handler, handleNullLevel);
         }
     }
 
@@ -94,13 +102,13 @@ public class PacketDispatcher {
     public static class ClientProxy {
 
         public static <T> void registerClientReceiver(String id, Function<FriendlyByteBuf, T> decode,
-                                                      BiConsumer<T, Level> handler) {
+                                                      BiConsumer<T, Level> handler, boolean handleNullLevel) {
             ClientPlayNetworking.registerGlobalReceiver(new ResourceLocation(PACKET_LOCATION, id), (client, listener, buf, responseSender) -> {
                 buf.retain();
                 client.execute(() -> {
                     T packet = decode.apply(buf);
                     ClientLevel level = client.level;
-                    if (level != null) {
+                    if (handleNullLevel || level != null) {
                         try {
                             handler.accept(packet, level);
                         } catch (Throwable throwable) {

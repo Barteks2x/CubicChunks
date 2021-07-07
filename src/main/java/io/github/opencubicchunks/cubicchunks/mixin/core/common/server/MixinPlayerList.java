@@ -3,10 +3,13 @@ package io.github.opencubicchunks.cubicchunks.mixin.core.common.server;
 import java.util.List;
 
 import io.github.opencubicchunks.cubicchunks.chunk.IVerticalView;
+import io.github.opencubicchunks.cubicchunks.mixin.access.common.BlockPosAccess;
+import io.github.opencubicchunks.cubicchunks.network.PacketBlockPosLongIncorrect;
 import io.github.opencubicchunks.cubicchunks.network.PacketCCLevelInfo;
 import io.github.opencubicchunks.cubicchunks.network.PacketCubeCacheRadius;
 import io.github.opencubicchunks.cubicchunks.network.PacketDispatcher;
 import io.github.opencubicchunks.cubicchunks.server.CubicLevelHeightAccessor;
+import net.minecraft.network.Connection;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -53,5 +56,10 @@ public abstract class MixinPlayerList implements IVerticalView {
     @Inject(method = "sendLevelInfo", at = @At("HEAD"))
     private void sendCubeInfo(ServerPlayer player, ServerLevel world, CallbackInfo ci) {
         PacketDispatcher.sendTo(new PacketCCLevelInfo(((CubicLevelHeightAccessor) world).worldStyle()), player);
+        PacketDispatcher.sendTo(new PacketBlockPosLongIncorrect(BlockPosAccess.getPackedXLength()), player);
+    }
+
+    @Inject(method = "placeNewPlayer", at = @At(value = "NEW", target = "net/minecraft/network/protocol/game/ClientboundLoginPacket"))
+    private void sendCCInfo(Connection connection, ServerPlayer player, CallbackInfo ci) {
     }
 }

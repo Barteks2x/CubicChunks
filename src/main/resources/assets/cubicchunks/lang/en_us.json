@@ -1,4 +1,6 @@
 {
     "options.verticalRenderDistance": "Vertical View Distance",
-    "options.vertical_chunks": "%s"
+    "options.vertical_chunks": "%s",
+    "blockposlongfailure.title": "This server's XZ size does not match the XZ size set in the config.\nIn order to load this world, you will need to match the config's XZ size with the Server's XZ size. Changing the config requires a game restart.\n\nServer's XZ size: %s, Y size: %s\nConfig's XZ size: %s, Y size: %s",
+    "gui.blockposlongfailure.title.menu.openfile": "Open Blockpos Config"
 }

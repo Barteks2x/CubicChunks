@@ -1,8 +1,11 @@
 package io.github.opencubicchunks.cubicchunks;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
@@ -22,6 +25,7 @@ import io.github.opencubicchunks.cubicchunks.world.gen.feature.CCFeatures;
 import io.github.opencubicchunks.cubicchunks.world.gen.placement.CCPlacement;
 import io.github.opencubicchunks.cubicchunks.world.gen.placement.CubicHeightProvider;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
 import net.minecraft.Util;
 import net.minecraft.core.Registry;
@@ -51,6 +55,8 @@ public class CubicChunks implements ModInitializer {
 
     public static final String MODID = "cubicchunks";
     public static final Logger LOGGER = LogManager.getLogger();
+
+    public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve(MODID);
 
     public static final String PROTOCOL_VERSION = "0";
 
@@ -136,6 +142,28 @@ public class CubicChunks implements ModInitializer {
 
         Registry.register(Registry.BIOME_SOURCE, new ResourceLocation(MODID, "stripes"), StripedBiomeSource.CODEC);
 //        Registry.register(Registry.CHUNK_GENERATOR, new ResourceLocation(MODID, "generator"), CCNoiseBasedChunkGenerator.CODEC);
+    }
+
+    public static void createBlockPosPropertiesFile(Path blockPosPath, String fileText, boolean overwriteExisting) {
+        File blockPosFile = blockPosPath.toFile();
+
+        if (!blockPosPath.getParent().toFile().exists()) {
+            try {
+                Files.createDirectories(blockPosPath.getParent());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+        if (overwriteExisting || !blockPosFile.exists()) {
+            try (FileWriter writer = new FileWriter(blockPosFile)) {
+                writer.write("#This value represents the total size of the X & Z axis from one end of the world to the other." +
+                    "\n#If this value is: \"67,108,864\", there's effectively \"33,554,432\" in the positive x/z & negative x/z directions." +
+                    "\n#Y size in this case would be calculated with the following formula: \"((1 << (64 - 67,108,864)) - 32)\" and result in: 4064."
+                    + fileText);
+            } catch (IOException e) {
+            }
+        }
     }
 
     //TODO: Implement a file for this.
